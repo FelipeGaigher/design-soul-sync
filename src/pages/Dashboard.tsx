@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Coins, Box, GitBranch, TrendingUp, ArrowRight, Sparkles } from "lucide-react";
+import { CreateTokenDialog } from "@/components/tokens/CreateTokenDialog";
 
 export default function Dashboard() {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const stats = [
     { label: "Tokens Ativos", value: "247", icon: Coins, change: "+12%" },
     { label: "Componentes", value: "38", icon: Box, change: "+5%" },
@@ -18,13 +21,29 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div>
-        <h1 className="mb-2">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Visão geral do seu Design System sincronizado
-        </p>
-      </div>
+    <>
+      <CreateTokenDialog 
+        open={isCreateDialogOpen} 
+        onOpenChange={setIsCreateDialogOpen}
+      />
+
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="mb-2 text-3xl">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Visão geral do seu Design System sincronizado
+            </p>
+          </div>
+          <Button 
+            size="lg" 
+            className="gap-2"
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
+            <Sparkles className="h-4 w-4" />
+            Criar Token
+          </Button>
+        </div>
 
       {/* Stats Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -58,7 +77,11 @@ export default function Dashboard() {
             <CardDescription>Acelere seu fluxo de trabalho</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-between group">
+            <Button 
+              variant="outline" 
+              className="w-full justify-between group"
+              onClick={() => setIsCreateDialogOpen(true)}
+            >
               Criar novo Token
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
@@ -135,7 +158,8 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }
 
