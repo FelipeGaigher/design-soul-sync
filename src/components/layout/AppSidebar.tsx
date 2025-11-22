@@ -32,7 +32,7 @@ const navItems = [
   { title: "Versionamento", url: "/versioning", icon: GitBranch },
   { title: "Projetos", url: "/projects", icon: Folder },
   { title: "Benchmark", url: "/benchmark", icon: BarChart3 },
-  { title: "Cenários & Automação", url: "/automation", icon: Workflow },
+  { title: "Cenários & Automação", url: "/scenarios", icon: Workflow },
   { title: "Assistente IA", url: "/ai-assistant", icon: Sparkles },
 ];
 

@@ -12,6 +12,8 @@ import CodeGenerator from "./pages/CodeGenerator";
 import Projects from "./pages/Projects";
 import Benchmark from "./pages/Benchmark";
 import AIAssistant from "./pages/AIAssistant";
+import Versioning from "./pages/Versioning";
+import ScenariosAutomation from "./pages/ScenariosAutomation";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +34,8 @@ const App = () => (
           <Route path="/projects" element={<AppLayout><Projects /></AppLayout>} />
           <Route path="/benchmark" element={<AppLayout><Benchmark /></AppLayout>} />
           <Route path="/ai-assistant" element={<AppLayout><AIAssistant /></AppLayout>} />
+          <Route path="/versioning" element={<AppLayout><Versioning /></AppLayout>} />
+          <Route path="/scenarios" element={<AppLayout><ScenariosAutomation /></AppLayout>} />
           <Route path="/login" element={<Login />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
