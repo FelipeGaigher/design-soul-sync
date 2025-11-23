@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +21,28 @@ import {
   ArrowRight 
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+const tokenSchema = z.object({
+  name: z.string().min(1, { message: "Nome é obrigatório" }),
+  value: z.string().min(1, { message: "Valor é obrigatório" }),
+  type: z.string().min(1, { message: "Tipo é obrigatório" }),
+  category: z.string().min(1, { message: "Categoria é obrigatória" }),
+});
+
+const figmaApiSchema = z.object({
+  url: z.string().url({ message: "URL inválida" }),
+  token: z.string().min(1, { message: "Token de acesso é obrigatório" }),
+});
 
 interface CreateTokenDialogProps {
   open: boolean;
@@ -26,6 +51,42 @@ interface CreateTokenDialogProps {
 
 export function CreateTokenDialog({ open, onOpenChange }: CreateTokenDialogProps) {
   const [activeTab, setActiveTab] = useState("manual");
+
+  const tokenForm = useForm<z.infer<typeof tokenSchema>>({
+    resolver: zodResolver(tokenSchema),
+    defaultValues: {
+      name: "",
+      value: "",
+      type: "",
+      category: "",
+    },
+  });
+
+  const figmaForm = useForm<z.infer<typeof figmaApiSchema>>({
+    resolver: zodResolver(figmaApiSchema),
+    defaultValues: {
+      url: "",
+      token: "",
+    },
+  });
+
+  const onTokenSubmit = (data: z.infer<typeof tokenSchema>) => {
+    toast({
+      title: "Token criado com sucesso!",
+      description: `${data.name} foi adicionado aos seus tokens`,
+      variant: "success",
+    });
+    onOpenChange(false);
+  };
+
+  const onFigmaSubmit = (data: z.infer<typeof figmaApiSchema>) => {
+    toast({
+      title: "Conectando ao Figma...",
+      description: "Importando tokens do projeto",
+      variant: "info",
+    });
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -68,50 +129,74 @@ export function CreateTokenDialog({ open, onOpenChange }: CreateTokenDialogProps
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="token-name">Nome do Token</Label>
-                  <Input 
-                    id="token-name" 
-                    placeholder="Ex: color/primary-500"
-                    className="font-mono"
+              <Form {...tokenForm}>
+                <form onSubmit={tokenForm.handleSubmit(onTokenSubmit)} className="space-y-4 pt-4">
+                  <FormField
+                    control={tokenForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Token</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: color/primary-500" className="font-mono" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Use nomenclatura: categoria/nome-variante
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Use nomenclatura: categoria/nome-variante
-                  </p>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="token-value">Valor</Label>
-                    <Input 
-                      id="token-value" 
-                      placeholder="Ex: #6BA5E7"
-                      className="font-mono"
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={tokenForm.control}
+                      name="value"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Valor</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: #6BA5E7" className="font-mono" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={tokenForm.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: Color" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="token-type">Tipo</Label>
-                    <Input 
-                      id="token-type" 
-                      placeholder="Ex: Color"
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="token-category">Categoria</Label>
-                  <Input 
-                    id="token-category" 
-                    placeholder="Ex: Colors"
+                  <FormField
+                    control={tokenForm.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Categoria</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Colors" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
 
-                <Button className="w-full">
-                  Criar Token
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
+                  <Button type="submit" className="w-full">
+                    Criar Token
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </form>
+              </Form>
             </div>
           </TabsContent>
 
@@ -136,42 +221,55 @@ export function CreateTokenDialog({ open, onOpenChange }: CreateTokenDialogProps
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="figma-url">URL do Projeto Figma</Label>
-                  <Input 
-                    id="figma-url" 
-                    placeholder="https://www.figma.com/file/..."
+              <Form {...figmaForm}>
+                <form onSubmit={figmaForm.handleSubmit(onFigmaSubmit)} className="space-y-4 pt-4">
+                  <FormField
+                    control={figmaForm.control}
+                    name="url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>URL do Projeto Figma</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://www.figma.com/file/..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="figma-token">Token de Acesso</Label>
-                  <Input 
-                    id="figma-token" 
-                    type="password"
-                    placeholder="figd_••••••••••••••••"
+                  <FormField
+                    control={figmaForm.control}
+                    name="token"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Token de Acesso</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="figd_••••••••••••••••" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Gere um token em: Figma → Settings → Personal Access Tokens
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Gere um token em: Figma → Settings → Personal Access Tokens
-                  </p>
-                </div>
 
-                <div className="rounded-lg bg-accent/20 border border-accent p-4">
-                  <p className="text-sm font-medium mb-2">O que será importado:</p>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Variáveis de cores</li>
-                    <li>• Estilos de texto (tipografia)</li>
-                    <li>• Espaçamentos e grid</li>
-                    <li>• Efeitos e sombras</li>
-                  </ul>
-                </div>
+                  <div className="rounded-lg bg-accent/20 border border-accent p-4">
+                    <p className="text-sm font-medium mb-2">O que será importado:</p>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Variáveis de cores</li>
+                      <li>• Estilos de texto (tipografia)</li>
+                      <li>• Espaçamentos e grid</li>
+                      <li>• Efeitos e sombras</li>
+                    </ul>
+                  </div>
 
-                <Button className="w-full">
-                  Conectar e Importar
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
+                  <Button type="submit" className="w-full">
+                    Conectar e Importar
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </form>
+              </Form>
             </div>
           </TabsContent>
 
