@@ -1,13 +1,43 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Sparkles } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+const loginSchema = z.object({
+  email: z.string().email({ message: "Email inválido" }),
+  password: z.string().min(6, { message: "Senha deve ter no mínimo 6 caracteres" }),
+});
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const form = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = (data: z.infer<typeof loginSchema>) => {
+    toast({
+      title: "Login realizado com sucesso!",
+      description: `Bem-vindo de volta, ${data.email}`,
+      variant: "success",
+    });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -32,41 +62,51 @@ export default function Login() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="seu@email.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Senha</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="rounded border-border" />
-                <span className="text-muted-foreground">Lembrar de mim</span>
-              </label>
-              <a href="#" className="text-primary hover:underline">
-                Esqueceu a senha?
-              </a>
-            </div>
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="rounded border-border" />
+                    <span className="text-muted-foreground">Lembrar de mim</span>
+                  </label>
+                  <a href="#" className="text-primary hover:underline">
+                    Esqueceu a senha?
+                  </a>
+                </div>
 
-            <Button className="w-full" size="lg">
-              Entrar
-            </Button>
+                <Button type="submit" className="w-full" size="lg">
+                  Entrar
+                </Button>
+              </form>
+            </Form>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

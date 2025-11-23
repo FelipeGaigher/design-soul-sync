@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Send, User, Bot } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "@/hooks/use-toast";
 
 type Message = {
   role: "user" | "assistant";
@@ -20,7 +21,14 @@ export default function AIAssistant() {
   const [input, setInput] = useState("");
 
   const handleSend = () => {
-    if (!input.trim()) return;
+    if (!input.trim()) {
+      toast({
+        title: "Erro",
+        description: "Por favor, digite uma mensagem",
+        variant: "error",
+      });
+      return;
+    }
 
     setMessages(prev => [...prev, { role: "user", content: input }]);
     
