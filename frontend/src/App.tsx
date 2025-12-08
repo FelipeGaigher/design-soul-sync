@@ -16,6 +16,7 @@ import AIAssistant from "./pages/AIAssistant";
 import Versioning from "./pages/Versioning";
 import ScenariosAutomation from "./pages/ScenariosAutomation";
 import Login from "./pages/Login";
+import OAuthCallback from "./pages/OAuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,9 @@ const App = () => (
                 <Login />
               </PublicRoute>
             } />
+            
+            {/* Rota pública - OAuth Callback */}
+            <Route path="/oauth/callback" element={<OAuthCallback />} />
             
             {/* Rotas protegidas */}
             <Route path="/tokens" element={

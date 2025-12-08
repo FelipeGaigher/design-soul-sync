@@ -5,6 +5,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { FigmaOAuthService } from './oauth/figma-oauth.service';
+import { GitHubOAuthService } from './oauth/github-oauth.service';
+import { OAuthController } from './oauth/oauth.controller';
 
 @Module({
   imports: [
@@ -18,8 +21,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtModule],
+  controllers: [AuthController, OAuthController],
+  providers: [AuthService, JwtStrategy, FigmaOAuthService, GitHubOAuthService],
+  exports: [AuthService, JwtModule, FigmaOAuthService],
 })
 export class AuthModule {}

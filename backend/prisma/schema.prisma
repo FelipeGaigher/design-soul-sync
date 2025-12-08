@@ -29,11 +29,14 @@ enum TokenType {
   COLOR
   SPACING
   TYPOGRAPHY
-  BORDER
+  BORDER_RADIUS
   SHADOW
-  ANIMATION
+  FONT_SIZE
+  FONT_WEIGHT
+  LINE_HEIGHT
   Z_INDEX
   OPACITY
+  OTHER
 }
 
 enum ComponentCategory {
@@ -90,11 +93,16 @@ model User {
   name              String
   avatarUrl         String?
   
-  // OAuth
+  // OAuth - Google
   googleId          String?   @unique
+  googleAccessToken String?
+  
+  // OAuth - GitHub
   githubId          String?   @unique
+  githubAccessToken String?
   
   // Figma Integration
+  figmaId           String?   @unique
   figmaAccessToken  String?
   figmaRefreshToken String?
   figmaUserId       String?

@@ -160,7 +160,7 @@ async function main() {
     { name: 'z-index/modal', value: '1050', type: TokenType.Z_INDEX, category: 'Layout', description: 'Modal z-index' },
     { name: 'z-index/tooltip', value: '1070', type: TokenType.Z_INDEX, category: 'Layout', description: 'Tooltip z-index' },
     
-    // Animation
+    // Animations
     { name: 'animation/duration-fast', value: '150ms', type: TokenType.ANIMATION, category: 'Animation', description: 'Fast animation' },
     { name: 'animation/duration-normal', value: '300ms', type: TokenType.ANIMATION, category: 'Animation', description: 'Normal animation' },
     { name: 'animation/duration-slow', value: '500ms', type: TokenType.ANIMATION, category: 'Animation', description: 'Slow animation' },
