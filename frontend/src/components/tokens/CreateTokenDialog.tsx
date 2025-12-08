@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,8 @@ import {
   Upload, 
   Puzzle, 
   Sparkles,
-  ArrowRight 
+  ArrowRight,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -31,12 +33,46 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { tokensService } from "@/services/tokens.service";
+
+const TOKEN_TYPES = [
+  { value: "COLOR", label: "Cor" },
+  { value: "SPACING", label: "Espaçamento" },
+  { value: "TYPOGRAPHY", label: "Tipografia" },
+  { value: "BORDER_RADIUS", label: "Border Radius" },
+  { value: "SHADOW", label: "Sombra" },
+  { value: "FONT_SIZE", label: "Tamanho Fonte" },
+  { value: "FONT_WEIGHT", label: "Peso Fonte" },
+  { value: "LINE_HEIGHT", label: "Altura Linha" },
+  { value: "OPACITY", label: "Opacidade" },
+  { value: "Z_INDEX", label: "Z-Index" },
+  { value: "OTHER", label: "Outro" },
+];
+
+const CATEGORIES = [
+  "Colors",
+  "Typography",
+  "Spacing",
+  "Borders",
+  "Effects",
+  "Layout",
+  "Animation",
+  "Other",
+];
 
 const tokenSchema = z.object({
   name: z.string().min(1, { message: "Nome é obrigatório" }),
   value: z.string().min(1, { message: "Valor é obrigatório" }),
   type: z.string().min(1, { message: "Tipo é obrigatório" }),
   category: z.string().min(1, { message: "Categoria é obrigatória" }),
+  description: z.string().optional(),
 });
 
 const figmaApiSchema = z.object({
@@ -47,9 +83,11 @@ const figmaApiSchema = z.object({
 interface CreateTokenDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  projectId?: string;
 }
 
-export function CreateTokenDialog({ open, onOpenChange }: CreateTokenDialogProps) {
+export function CreateTokenDialog({ open, onOpenChange, projectId }: CreateTokenDialogProps) {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("manual");
 
   const tokenForm = useForm<z.infer<typeof tokenSchema>>({
@@ -59,6 +97,7 @@ export function CreateTokenDialog({ open, onOpenChange }: CreateTokenDialogProps
       value: "",
       type: "",
       category: "",
+      description: "",
     },
   });
 
@@ -70,20 +109,45 @@ export function CreateTokenDialog({ open, onOpenChange }: CreateTokenDialogProps
     },
   });
 
+  // Create token mutation
+  const createMutation = useMutation({
+    mutationFn: (data: z.infer<typeof tokenSchema>) => {
+      if (!projectId) throw new Error("Projeto não selecionado");
+      return tokensService.create(projectId, {
+        name: data.name,
+        value: data.value,
+        type: data.type,
+        category: data.category,
+        description: data.description,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tokens'] });
+      queryClient.invalidateQueries({ queryKey: ['tokens-stats'] });
+      toast({
+        title: "Token criado com sucesso!",
+        description: `${tokenForm.getValues('name')} foi adicionado aos seus tokens`,
+      });
+      tokenForm.reset();
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao criar token",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onTokenSubmit = (data: z.infer<typeof tokenSchema>) => {
-    toast({
-      title: "Token criado com sucesso!",
-      description: `${data.name} foi adicionado aos seus tokens`,
-      variant: "success",
-    });
-    onOpenChange(false);
+    createMutation.mutate(data);
   };
 
   const onFigmaSubmit = (data: z.infer<typeof figmaApiSchema>) => {
     toast({
       title: "Conectando ao Figma...",
       description: "Importando tokens do projeto",
-      variant: "info",
     });
     onOpenChange(false);
   };
@@ -168,9 +232,20 @@ export function CreateTokenDialog({ open, onOpenChange }: CreateTokenDialogProps
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Tipo</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: Color" {...field} />
-                          </FormControl>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o tipo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {TOKEN_TYPES.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -183,17 +258,29 @@ export function CreateTokenDialog({ open, onOpenChange }: CreateTokenDialogProps
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Categoria</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex: Colors" {...field} />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione a categoria" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {CATEGORIES.map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {cat}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+                    {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Criar Token
-                    <ArrowRight className="h-4 w-4 ml-2" />
+                    {!createMutation.isPending && <ArrowRight className="h-4 w-4 ml-2" />}
                   </Button>
                 </form>
               </Form>

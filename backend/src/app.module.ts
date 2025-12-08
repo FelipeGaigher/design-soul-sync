@@ -4,6 +4,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ProjectsModule } from './projects/projects.module';
+import { TokensModule } from './tokens/tokens.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     AuthModule,
     UsersModule,
+    ProjectsModule,
+    TokensModule,
   ],
 })
 export class AppModule {}
