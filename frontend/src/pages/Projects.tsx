@@ -1,8 +1,31 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Plus, 
   Search, 
@@ -12,124 +35,154 @@ import {
   Clock,
   Box,
   Coins,
-  ExternalLink
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Loader2,
 } from "lucide-react";
-
-interface Project {
-  id: string;
-  name: string;
-  componentsCount: number;
-  tokensCount: number;
-  pendencies: number;
-  divergences: number;
-  lastUpdate: string;
-  status: "healthy" | "warning" | "error";
-  color: string;
-}
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
+import { projectsService, Project } from "@/services/projects.service";
+import { useProject } from "@/contexts/ProjectContext";
 
 export default function Projects() {
+  const queryClient = useQueryClient();
+  const { setActiveProject, activeProject } = useProject();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [formData, setFormData] = useState({ name: "", description: "" });
 
-  const projects: Project[] = [
-    {
-      id: "1",
-      name: "Fotus",
-      componentsCount: 42,
-      tokensCount: 247,
-      pendencies: 0,
-      divergences: 0,
-      lastUpdate: "2 horas atrás",
-      status: "healthy",
-      color: "#6BA5E7"
+  // Fetch projects
+  const { data: projects = [], isLoading, error } = useQuery({
+    queryKey: ['projects'],
+    queryFn: projectsService.getAll,
+  });
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: projectsService.create,
+    onSuccess: (newProject) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      setIsCreateOpen(false);
+      setFormData({ name: "", description: "" });
+      toast({ title: "Projeto criado com sucesso!" });
+      // Se é o primeiro projeto, defini-lo como ativo
+      if (projects.length === 0) {
+        setActiveProject(newProject);
+      }
     },
-    {
-      id: "2",
-      name: "Litoral Têxtil",
-      componentsCount: 38,
-      tokensCount: 198,
-      pendencies: 3,
-      divergences: 2,
-      lastUpdate: "1 dia atrás",
-      status: "warning",
-      color: "#F0E4C8"
+    onError: (error: Error) => {
+      toast({ title: "Erro ao criar projeto", description: error.message, variant: "destructive" });
     },
-    {
-      id: "3",
-      name: "Onix",
-      componentsCount: 52,
-      tokensCount: 312,
-      pendencies: 0,
-      divergences: 0,
-      lastUpdate: "3 horas atrás",
-      status: "healthy",
-      color: "#2D3748"
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => projectsService.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      setIsEditOpen(false);
+      setSelectedProject(null);
+      toast({ title: "Projeto atualizado!" });
     },
-    {
-      id: "4",
-      name: "CPAPS",
-      componentsCount: 28,
-      tokensCount: 156,
-      pendencies: 5,
-      divergences: 4,
-      lastUpdate: "2 dias atrás",
-      status: "error",
-      color: "#E53E3E"
+    onError: (error: Error) => {
+      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
     },
-    {
-      id: "5",
-      name: "UmClique",
-      componentsCount: 35,
-      tokensCount: 203,
-      pendencies: 1,
-      divergences: 0,
-      lastUpdate: "5 horas atrás",
-      status: "warning",
-      color: "#38B2AC"
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: projectsService.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      setIsDeleteOpen(false);
+      setSelectedProject(null);
+      toast({ title: "Projeto deletado!" });
+      // Se deletou o projeto ativo, limpar
+      if (activeProject?.id === selectedProject?.id) {
+        setActiveProject(null);
+      }
     },
-    {
-      id: "6",
-      name: "UserFlow",
-      componentsCount: 46,
-      tokensCount: 278,
-      pendencies: 0,
-      divergences: 1,
-      lastUpdate: "1 hora atrás",
-      status: "warning",
-      color: "#805AD5"
-    }
-  ];
+    onError: (error: Error) => {
+      toast({ title: "Erro ao deletar", description: error.message, variant: "destructive" });
+    },
+  });
 
   const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getStatusConfig = (status: string) => {
-    const configs = {
-      healthy: {
-        icon: CheckCircle2,
-        label: "Saudável",
-        className: "bg-primary/10 text-primary"
-      },
-      warning: {
-        icon: AlertCircle,
-        label: "Atenção",
-        className: "bg-accent/30 text-accent-foreground"
-      },
-      error: {
-        icon: AlertCircle,
-        label: "Crítico",
-        className: "bg-destructive/10 text-destructive"
-      }
-    };
-    return configs[status as keyof typeof configs];
+  const getStatusConfig = (project: Project) => {
+    const divergences = project.divergencesCount || 0;
+    if (divergences > 3) {
+      return { icon: AlertCircle, label: "Crítico", className: "bg-destructive/10 text-destructive" };
+    }
+    if (divergences > 0) {
+      return { icon: AlertCircle, label: "Atenção", className: "bg-accent/30 text-accent-foreground" };
+    }
+    return { icon: CheckCircle2, label: "Saudável", className: "bg-primary/10 text-primary" };
   };
 
   const totalStats = {
     projects: projects.length,
-    components: projects.reduce((acc, p) => acc + p.componentsCount, 0),
-    tokens: projects.reduce((acc, p) => acc + p.tokensCount, 0),
-    pendencies: projects.reduce((acc, p) => acc + p.pendencies, 0)
+    components: projects.reduce((acc, p) => acc + (p.componentsCount || 0), 0),
+    tokens: projects.reduce((acc, p) => acc + (p.tokensCount || 0), 0),
+    divergences: projects.reduce((acc, p) => acc + (p.divergencesCount || 0), 0),
   };
+
+  const handleCreate = () => {
+    if (!formData.name.trim()) {
+      toast({ title: "Nome é obrigatório", variant: "destructive" });
+      return;
+    }
+    createMutation.mutate(formData);
+  };
+
+  const handleEdit = () => {
+    if (!selectedProject || !formData.name.trim()) return;
+    updateMutation.mutate({ id: selectedProject.id, data: formData });
+  };
+
+  const handleDelete = () => {
+    if (!selectedProject) return;
+    deleteMutation.mutate(selectedProject.id);
+  };
+
+  const openEditDialog = (project: Project) => {
+    setSelectedProject(project);
+    setFormData({ name: project.name, description: project.description || "" });
+    setIsEditOpen(true);
+  };
+
+  const openDeleteDialog = (project: Project) => {
+    setSelectedProject(project);
+    setIsDeleteOpen(true);
+  };
+
+  const handleSelectProject = (project: Project) => {
+    setActiveProject(project);
+    toast({ title: `Projeto "${project.name}" selecionado` });
+  };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-semibold">Erro ao carregar projetos</h3>
+          <p className="text-muted-foreground">{(error as Error).message}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -140,10 +193,51 @@ export default function Projects() {
             Gerencie todos os seus Design Systems
           </p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Projeto
-        </Button>
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Projeto
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Criar Novo Projeto</DialogTitle>
+              <DialogDescription>
+                Crie um novo projeto para gerenciar seu Design System
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome do Projeto</Label>
+                <Input
+                  id="name"
+                  placeholder="Ex: Design System Principal"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Descrição (opcional)</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Descreva o projeto..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCreate} disabled={createMutation.isPending}>
+                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Criar Projeto
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Global Stats */}
@@ -194,8 +288,8 @@ export default function Projects() {
                 <AlertCircle className="h-5 w-5 text-accent-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-semibold">{totalStats.pendencies}</div>
-                <p className="text-xs text-muted-foreground">Pendências</p>
+                <div className="text-2xl font-semibold">{totalStats.divergences}</div>
+                <p className="text-xs text-muted-foreground">Divergências</p>
               </div>
             </div>
           </CardContent>
@@ -218,86 +312,195 @@ export default function Projects() {
       </Card>
 
       {/* Projects Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredProjects.map((project) => {
-          const statusConfig = getStatusConfig(project.status);
-          const StatusIcon = statusConfig.icon;
-
-          return (
-            <Card 
-              key={project.id}
-              className="shadow-soft hover:shadow-elevated transition-smooth group cursor-pointer"
-            >
-              <CardHeader className="border-b border-border">
-                <div className="flex items-start justify-between mb-3">
-                  <div 
-                    className="h-12 w-12 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${project.color}15` }}
-                  >
-                    <Folder 
-                      className="h-6 w-6"
-                      style={{ color: project.color }}
-                    />
-                  </div>
-                  <Badge variant="secondary" className={statusConfig.className}>
-                    <StatusIcon className="h-3 w-3 mr-1" />
-                    {statusConfig.label}
-                  </Badge>
-                </div>
-                <div>
-                  <CardTitle className="text-xl mb-1">{project.name}</CardTitle>
-                  <CardDescription className="flex items-center gap-1 text-xs">
-                    <Clock className="h-3 w-3" />
-                    {project.lastUpdate}
-                  </CardDescription>
-                </div>
+      {isLoading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="shadow-soft">
+              <CardHeader>
+                <Skeleton className="h-12 w-12 rounded-lg" />
+                <Skeleton className="h-6 w-32 mt-3" />
+                <Skeleton className="h-4 w-24" />
               </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-lg bg-muted/30 p-3">
-                    <p className="text-muted-foreground text-xs mb-1">Componentes</p>
-                    <p className="font-semibold text-lg">{project.componentsCount}</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/30 p-3">
-                    <p className="text-muted-foreground text-xs mb-1">Tokens</p>
-                    <p className="font-semibold text-lg">{project.tokensCount}</p>
-                  </div>
-                </div>
-
-                {(project.pendencies > 0 || project.divergences > 0) && (
-                  <div className="space-y-2">
-                    {project.pendencies > 0 && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Pendências</span>
-                        <Badge variant="secondary" className="bg-accent/30">
-                          {project.pendencies}
-                        </Badge>
-                      </div>
-                    )}
-                    {project.divergences > 0 && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Divergências Figma</span>
-                        <Badge variant="secondary" className="bg-destructive/10 text-destructive">
-                          {project.divergences}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="pt-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Abrir Projeto
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </div>
+              <CardContent>
+                <Skeleton className="h-20 w-full" />
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      ) : filteredProjects.length === 0 ? (
+        <Card className="shadow-soft">
+          <CardContent className="py-12 text-center">
+            <Folder className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">
+              {searchQuery ? "Nenhum projeto encontrado" : "Nenhum projeto ainda"}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {searchQuery
+                ? "Tente ajustar sua busca"
+                : "Crie seu primeiro projeto para começar"}
+            </p>
+            {!searchQuery && (
+              <Button onClick={() => setIsCreateOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Projeto
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredProjects.map((project) => {
+            const statusConfig = getStatusConfig(project);
+            const StatusIcon = statusConfig.icon;
+            const isActive = activeProject?.id === project.id;
+
+            return (
+              <Card 
+                key={project.id}
+                className={`shadow-soft hover:shadow-elevated transition-smooth group cursor-pointer ${
+                  isActive ? 'ring-2 ring-primary' : ''
+                }`}
+                onClick={() => handleSelectProject(project)}
+              >
+                <CardHeader className="border-b border-border">
+                  <div className="flex items-start justify-between mb-3">
+                    <div 
+                      className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center"
+                    >
+                      <Folder className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isActive && (
+                        <Badge variant="default" className="bg-primary">
+                          Ativo
+                        </Badge>
+                      )}
+                      <Badge variant="secondary" className={statusConfig.className}>
+                        <StatusIcon className="h-3 w-3 mr-1" />
+                        {statusConfig.label}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(project); }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={(e) => { e.stopPropagation(); openDeleteDialog(project); }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Deletar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl mb-1">{project.name}</CardTitle>
+                    <CardDescription className="flex items-center gap-1 text-xs">
+                      <Clock className="h-3 w-3" />
+                      {new Date(project.updatedAt).toLocaleDateString('pt-BR')}
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-4">
+                  {project.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {project.description}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg bg-muted/30 p-3">
+                      <p className="text-muted-foreground text-xs mb-1">Componentes</p>
+                      <p className="font-semibold text-lg">{project.componentsCount || 0}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/30 p-3">
+                      <p className="text-muted-foreground text-xs mb-1">Tokens</p>
+                      <p className="font-semibold text-lg">{project.tokensCount || 0}</p>
+                    </div>
+                  </div>
+
+                  {(project.divergencesCount || 0) > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Divergências Figma</span>
+                      <Badge variant="secondary" className="bg-destructive/10 text-destructive">
+                        {project.divergencesCount}
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Projeto</DialogTitle>
+            <DialogDescription>
+              Atualize as informações do projeto
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Nome do Projeto</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Descrição</Label>
+              <Textarea
+                id="edit-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending}>
+              {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deletar projeto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. O projeto "{selectedProject?.name}" e todos os seus tokens e componentes serão permanentemente deletados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Deletar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
