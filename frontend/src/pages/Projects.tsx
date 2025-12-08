@@ -39,6 +39,7 @@ import {
   Pencil,
   Trash2,
   Loader2,
+  Download,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -48,6 +49,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { projectsService, Project } from "@/services/projects.service";
+import { FigmaImportDialog } from "@/components/figma/FigmaImportDialog";
+
+// Ícone do Figma
+const FigmaIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none">
+    <path d="M8 24C10.208 24 12 22.208 12 20V16H8C5.792 16 4 17.792 4 20C4 22.208 5.792 24 8 24Z" fill="#0ACF83"/>
+    <path d="M4 12C4 9.792 5.792 8 8 8H12V16H8C5.792 16 4 14.208 4 12Z" fill="#A259FF"/>
+    <path d="M4 4C4 1.792 5.792 0 8 0H12V8H8C5.792 8 4 6.208 4 4Z" fill="#F24E1E"/>
+    <path d="M12 0H16C18.208 0 20 1.792 20 4C20 6.208 18.208 8 16 8H12V0Z" fill="#FF7262"/>
+    <path d="M20 12C20 14.208 18.208 16 16 16C13.792 16 12 14.208 12 12C12 9.792 13.792 8 16 8C18.208 8 20 9.792 20 12Z" fill="#1ABCFE"/>
+  </svg>
+);
 import { useProject } from "@/contexts/ProjectContext";
 
 export default function Projects() {
@@ -57,6 +70,7 @@ export default function Projects() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isFigmaImportOpen, setIsFigmaImportOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "" });
 
@@ -193,27 +207,32 @@ export default function Projects() {
             Gerencie todos os seus Design Systems
           </p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Projeto
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Criar Novo Projeto</DialogTitle>
-              <DialogDescription>
-                Crie um novo projeto para gerenciar seu Design System
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome do Projeto</Label>
-                <Input
-                  id="name"
-                  placeholder="Ex: Design System Principal"
-                  value={formData.name}
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setIsFigmaImportOpen(true)}>
+            <FigmaIcon className="h-4 w-4" />
+            Importar do Figma
+          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Projeto
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Criar Novo Projeto</DialogTitle>
+                <DialogDescription>
+                  Crie um novo projeto para gerenciar seu Design System
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome do Projeto</Label>
+                  <Input
+                    id="name"
+                    placeholder="Ex: Design System Principal"
+                    value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
@@ -238,6 +257,7 @@ export default function Projects() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Global Stats */}
@@ -501,6 +521,9 @@ export default function Projects() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Figma Import Dialog */}
+      <FigmaImportDialog open={isFigmaImportOpen} onOpenChange={setIsFigmaImportOpen} />
     </div>
   );
 }

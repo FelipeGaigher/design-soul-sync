@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TokensModule } from './tokens/tokens.module';
+import { FigmaModule } from './figma/figma.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { TokensModule } from './tokens/tokens.module';
     UsersModule,
     ProjectsModule,
     TokensModule,
+    FigmaModule,
   ],
 })
 export class AppModule {}

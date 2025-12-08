@@ -126,7 +126,9 @@ export default function Login() {
     }
   };
 
-  const handleFigmaLogin = async () => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+  const handleFigmaLogin = () => {
     setIsLoading(true);
     
     toast({
@@ -134,32 +136,29 @@ export default function Login() {
       description: "Você será redirecionado para autorização",
     });
     
-    // Em produção, redirecionar para OAuth do Figma
-    // window.location.href = `${API_URL}/auth/figma`;
-    
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    navigate("/tokens");
+    // Redirecionar para OAuth do Figma
+    window.location.href = `${API_URL}/auth/figma`;
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = () => {
     setIsLoading(true);
     toast({
-      title: "Conectando ao Google...",
-      description: "Você será redirecionado para autorização",
+      title: "Em breve...",
+      description: "Login com Google estará disponível em breve",
     });
-    await new Promise(resolve => setTimeout(resolve, 1500));
     setIsLoading(false);
   };
 
-  const handleGitHubLogin = async () => {
+  const handleGitHubLogin = () => {
     setIsLoading(true);
+    
     toast({
       title: "Conectando ao GitHub...",
       description: "Você será redirecionado para autorização",
     });
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsLoading(false);
+    
+    // Redirecionar para OAuth do GitHub
+    window.location.href = `${API_URL}/auth/github`;
   };
 
   return (
