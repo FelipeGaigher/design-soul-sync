@@ -1,0 +1,514 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum TokenType {
+  COLOR
+  SPACING
+  TYPOGRAPHY
+  BORDER
+  SHADOW
+  ANIMATION
+  Z_INDEX
+  OPACITY
+}
+
+enum ComponentCategory {
+  FUNDAMENTAIS
+  FEEDBACK
+  LAYOUT
+  NAVEGACAO
+  DADOS
+}
+
+enum ChangeOrigin {
+  MANUAL
+  FIGMA
+  AUTOMATION
+  AI
+}
+
+enum ChangeType {
+  TOKEN_CREATED
+  TOKEN_EDITED
+  TOKEN_REMOVED
+  COMPONENT_UPDATED
+  FIGMA_SYNC
+  DIVERGENCE_RESOLVED
+  ROLLBACK
+}
+
+enum DivergenceStatus {
+  PENDING
+  RESOLVED_LOCAL
+  RESOLVED_FIGMA
+}
+
+enum ScenarioStatus {
+  DRAFT
+  SIMULATED
+  APPLIED
+  DISCARDED
+}
+
+enum BenchmarkType {
+  COMPETITOR
+  REFERENCE
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  password          String?   // Null quando usa OAuth
+  name              String
+  avatarUrl         String?
+  
+  // OAuth
+  googleId          String?   @unique
+  githubId          String?   @unique
+  
+  // Figma Integration
+  figmaAccessToken  String?
+  figmaRefreshToken String?
+  figmaUserId       String?
+  figmaExpiresAt    DateTime?
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastLoginAt       DateTime?
+  
+  // Relations
+  projects          ProjectMember[]
+  ownedProjects     Project[]       @relation("ProjectOwner")
+  tokenHistory      TokenHistory[]
+  versionHistory    VersionHistory[]
+  aiConversations   AIConversation[]
+  
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Project {
+  id              String        @id @default(uuid())
+  name            String
+  description     String?
+  status          ProjectStatus @default(ACTIVE)
+  
+  // Figma
+  figmaFileId     String?
+  figmaFileName   String?
+  figmaLastSyncAt DateTime?
+  
+  // Settings (JSON)
+  settings        Json          @default("{}")
+  
+  // Owner
+  ownerId         String
+  owner           User          @relation("ProjectOwner", fields: [ownerId], references: [id])
+  
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  members         ProjectMember[]
+  tokens          Token[]
+  components      Component[]
+  versionHistory  VersionHistory[]
+  divergences     Divergence[]
+  scenarios       Scenario[]
+  automations     Automation[]
+  benchmarks      Benchmark[]
+  aiConversations AIConversation[]
+  
+  @@index([ownerId])
+  @@index([status])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  role      UserRole @default(MEMBER)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, projectId])
+  @@map("project_members")
+}
+
+model Token {
+  id               String    @id @default(uuid())
+  name             String
+  value            String
+  type             TokenType
+  category         String
+  description      String?
+  
+  // Figma
+  figmaVariableId  String?
+  figmaLastValue   String?   // Último valor conhecido do Figma
+  
+  // Metadata (JSON)
+  metadata         Json      @default("{}")
+  
+  // Project
+  projectId        String
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  // Relations
+  history          TokenHistory[]
+  componentTokens  ComponentToken[]
+  divergences      Divergence[]
+  scenarioChanges  ScenarioChange[]
+  
+  @@unique([projectId, name])
+  @@index([projectId, type])
+  @@index([projectId, category])
+  @@map("tokens")
+}
+
+model TokenHistory {
+  id          String       @id @default(uuid())
+  action      String       // created, updated, deleted
+  
+  // Changes (JSON)
+  changes     Json         // { field: { before, after } }
+  
+  origin      ChangeOrigin
+  
+  tokenId     String
+  token       Token        @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  createdAt   DateTime     @default(now())
+  
+  @@index([tokenId])
+  @@index([userId])
+  @@map("token_history")
+}
+
+model Component {
+  id              String            @id @default(uuid())
+  name            String
+  description     String?
+  category        ComponentCategory
+  
+  // Figma
+  figmaComponentId String?
+  figmaNodeId      String?
+  
+  // Preview
+  previewUrl      String?
+  
+  // Project
+  projectId       String
+  project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  variants        ComponentVariant[]
+  tokens          ComponentToken[]
+  
+  @@unique([projectId, name])
+  @@index([projectId, category])
+  @@map("components")
+}
+
+model ComponentVariant {
+  id          String    @id @default(uuid())
+  name        String
+  
+  // Tokens used (JSON)
+  tokens      Json      @default("{}")
+  
+  // Props/States (JSON)
+  props       Json      @default("{}")
+  
+  // Preview
+  previewUrl  String?
+  
+  componentId String
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@unique([componentId, name])
+  @@map("component_variants")
+}
+
+model ComponentToken {
+  id          String    @id @default(uuid())
+  property    String    // backgroundColor, color, padding, etc.
+  
+  componentId String
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  
+  tokenId     String
+  token       Token     @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now())
+  
+  @@unique([componentId, property])
+  @@index([tokenId])
+  @@map("component_tokens")
+}
+
+model Divergence {
+  id          String           @id @default(uuid())
+  status      DivergenceStatus @default(PENDING)
+  
+  localValue  String
+  figmaValue  String
+  
+  resolvedAt  DateTime?
+  resolution  String?          // keep_local, use_figma
+  
+  tokenId     String
+  token       Token            @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  projectId   String
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  @@index([projectId, status])
+  @@index([tokenId])
+  @@map("divergences")
+}
+
+model VersionHistory {
+  id              String       @id @default(uuid())
+  type            ChangeType
+  summary         String
+  
+  // Changes details (JSON)
+  changes         Json         @default("{}")
+  
+  // Affected items
+  affectedItems   String[]     @default([])
+  
+  origin          ChangeOrigin
+  
+  projectId       String
+  project         Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  userId          String?
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  createdAt       DateTime     @default(now())
+  
+  @@index([projectId])
+  @@index([projectId, type])
+  @@index([userId])
+  @@map("version_history")
+}
+
+model Scenario {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  status      ScenarioStatus @default(DRAFT)
+  
+  // Impact analysis (JSON)
+  impact      Json?
+  
+  // Simulation results (JSON)
+  simulation  Json?
+  
+  projectId   String
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  appliedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  // Relations
+  changes     ScenarioChange[]
+  
+  @@index([projectId, status])
+  @@map("scenarios")
+}
+
+model ScenarioChange {
+  id            String   @id @default(uuid())
+  proposedValue String
+  
+  scenarioId    String
+  scenario      Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  
+  tokenId       String
+  token         Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@unique([scenarioId, tokenId])
+  @@map("scenario_changes")
+}
+
+model Automation {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  category    String   // sync, accessibility, consistency, cleanup
+  enabled     Boolean  @default(false)
+  
+  // Configuration (JSON)
+  config      Json     @default("{}")
+  
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([projectId, name])
+  @@map("automations")
+}
+
+model Benchmark {
+  id           String        @id @default(uuid())
+  name         String
+  type         BenchmarkType
+  competitor   String?
+  
+  // Image
+  imageUrl     String
+  thumbnailUrl String?
+  
+  // AI Analysis (JSON)
+  analysis     Json?
+  
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  analyzedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  
+  @@index([projectId, type])
+  @@map("benchmarks")
+}
+
+model AIConversation {
+  id        String      @id @default(uuid())
+  
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  
+  // Relations
+  messages  AIMessage[]
+  
+  @@index([projectId, userId])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String         @id @default(uuid())
+  role           String         // user, assistant
+  content        String
+  
+  // Context (JSON)
+  context        Json?
+  
+  // Suggestions (JSON)
+  suggestions    Json?
+  
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  createdAt      DateTime       @default(now())
+  
+  @@index([conversationId])
+  @@map("ai_messages")
+}
+
+// ============================================
+// AUDIT & SYSTEM
+// ============================================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String
+  userId    String?
+  ipAddress String?
+  userAgent String?
+  details   Json?
+  createdAt DateTime @default(now())
+  
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+  
+  @@map("system_settings")
+}
