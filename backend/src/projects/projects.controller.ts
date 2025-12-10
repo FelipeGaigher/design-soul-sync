@@ -43,6 +43,12 @@ export class ProjectsController {
     return this.projectsService.getStats(id, req.user.sub);
   }
 
+  @Get(':id/components')
+  @ApiOperation({ summary: 'List components for a project' })
+  getComponents(@Param('id') id: string, @Request() req) {
+    return this.projectsService.getComponents(id, req.user.sub);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Criar novo projeto' })
   @ApiResponse({ status: 201, description: 'Projeto criado' })

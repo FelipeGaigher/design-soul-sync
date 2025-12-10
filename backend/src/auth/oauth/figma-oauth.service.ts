@@ -190,6 +190,54 @@ export class FigmaOAuthService {
     };
   }
 
+  async getFileComponents(accessToken: string, fileKey: string): Promise<Array<any>> {
+    this.logger.log(`Fetching components for file ${fileKey}...`);
+
+    const response = await fetch(`https://api.figma.com/v1/files/${fileKey}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.logger.error(`Failed to fetch Figma file for components (${response.status}):`, errorText);
+      const error = new Error(`Figma API error: ${response.status}`);
+      (error as any).status = response.status;
+      throw error;
+    }
+
+    const data = await response.json();
+
+    const components: Array<any> = [];
+
+    // Traverse document tree recursively to find COMPONENT and COMPONENT_SET nodes
+    function traverse(node: any, parent?: any) {
+      if (!node) return;
+
+      if (node.type === 'COMPONENT' || node.type === 'COMPONENT_SET') {
+        const comp: any = {
+          id: node.id,
+          name: node.name || (node.componentId || node.id),
+          type: node.type,
+          children: Array.isArray(node.children) ? node.children.map((c: any) => ({ id: c.id, name: c.name, type: c.type })) : [],
+        };
+
+        components.push(comp);
+      }
+
+      if (node.children && Array.isArray(node.children)) {
+        for (const child of node.children) traverse(child, node);
+      }
+    }
+
+    // The file root is in data.document
+    traverse(data.document);
+
+    this.logger.log(`Found ${components.length} components in file ${fileKey}`);
+    return components;
+  }
+
   async getFileVariables(accessToken: string, fileKey: string): Promise<any> {
     const response = await fetch(`https://api.figma.com/v1/files/${fileKey}/variables/local`, {
       headers: {

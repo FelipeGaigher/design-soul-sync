@@ -196,6 +196,25 @@ export class ProjectsService {
     };
   }
 
+  async getComponents(projectId: string, userId: string) {
+    await this.checkAccess(projectId, userId);
+
+    const components = await this.prisma.component.findMany({
+      where: { projectId },
+      include: {
+        variants: true,
+        tokens: {
+          include: {
+            token: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return components;
+  }
+
   // Helper: verificar se é dono do projeto
   private async checkOwnership(projectId: string, userId: string) {
     const project = await this.prisma.project.findUnique({
