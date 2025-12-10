@@ -382,6 +382,61 @@ export class FigmaController {
         },
       });
 
+      // Import components from Figma file
+      try {
+        const components = await this.callWithTokenRefresh(
+          req.user.sub,
+          (token) => this.figmaOAuthService.getFileComponents(token, body.fileKey),
+        );
+
+        for (const comp of components) {
+          // Upsert component by project + name
+          const existing = await this.prisma.component.findFirst({
+            where: { projectId, name: comp.name },
+          });
+
+          if (existing) {
+            await this.prisma.component.update({
+              where: { id: existing.id },
+              data: {
+                figmaComponentId: comp.id,
+                figmaNodeId: comp.id,
+                updatedAt: new Date(),
+              },
+            });
+          } else {
+            const created = await this.prisma.component.create({
+              data: {
+                name: comp.name,
+                description: `Imported from Figma file ${body.fileKey}`,
+                category: 'FUNDAMENTAIS',
+                figmaComponentId: comp.id,
+                figmaNodeId: comp.id,
+                projectId,
+              },
+            });
+
+            // If it's a COMPONENT_SET, create simple variants for children
+            if (comp.type === 'COMPONENT_SET' && Array.isArray(comp.children)) {
+              for (const child of comp.children) {
+                await this.prisma.componentVariant.create({
+                  data: {
+                    name: child.name || child.id,
+                    tokens: {},
+                    props: {},
+                    previewUrl: null,
+                    componentId: created.id,
+                  },
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // Non-fatal: log but continue
+        this.logger.error(`Failed to import components: ${err.message}`);
+      }
+
       return {
         imported: imported.length,
         updated: updated.length,
