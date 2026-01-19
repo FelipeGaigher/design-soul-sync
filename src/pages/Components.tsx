@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,9 @@ import { ComponentCard } from "@/components/components/ComponentCard";
 
 type Category = "fundamentais" | "feedback" | "layout" | "navegacao" | "dados";
 
-import { useProject } from "@/contexts/ProjectContext";
-import { projectsService } from "@/services/projects.service";
-
 export default function Components() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category>("fundamentais");
-  const [loading, setLoading] = useState(false);
-  const [fetchedComponents, setFetchedComponents] = useState<any[]>([]);
-  const { activeProject } = useProject();
 
   const categories = [
     { id: "fundamentais" as Category, label: "Fundamentais", icon: Layers, count: 12 },
@@ -68,37 +62,11 @@ export default function Components() {
     ]
   };
 
-  // Map fetched components to UI format
-  const mappedComponents = fetchedComponents.map((c) => ({
-    name: c.name,
-    description: c.description || '',
-    variants: Array.isArray(c.variants) ? c.variants.length : 0,
-    tokens: Array.isArray(c.tokens) ? c.tokens.length : 0,
-    category: (c.category || 'FUNDAMENTAIS').toString(),
-  }));
-
-  const currentComponents = mappedComponents.filter(cm => cm.category.toLowerCase().includes(activeCategory));
+  const currentComponents = components[activeCategory];
   const filteredComponents = currentComponents.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  useEffect(() => {
-    async function load() {
-      if (!activeProject?.id) return;
-      setLoading(true);
-      try {
-        const comps = await projectsService.getComponents(activeProject.id);
-        setFetchedComponents(comps);
-      } catch (err) {
-        console.error('Failed to load components', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
-  }, [activeProject]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
