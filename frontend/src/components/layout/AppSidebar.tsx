@@ -2,10 +2,7 @@ import {
   LayoutDashboard, 
   Coins, 
   Shuffle, 
-  Box, 
-  Code2, 
   GitBranch, 
-  Folder, 
   BarChart3, 
   Workflow,
   Sparkles
@@ -24,13 +21,10 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Tokens", url: "/tokens", icon: Coins },
   { title: "Variáveis do Figma", url: "/figma-sync", icon: Shuffle },
-  { title: "Componentes", url: "/components", icon: Box },
-  { title: "Gerador de Código", url: "/code-generator", icon: Code2 },
   { title: "Versionamento", url: "/versioning", icon: GitBranch },
-  { title: "Projetos", url: "/projects", icon: Folder },
   { title: "Benchmark", url: "/benchmark", icon: BarChart3 },
   { title: "Cenários & Automação", url: "/scenarios", icon: Workflow },
   { title: "Assistente IA", url: "/ai-assistant", icon: Sparkles },

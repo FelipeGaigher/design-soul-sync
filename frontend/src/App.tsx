@@ -8,9 +8,6 @@ import { ProtectedRoute, PublicRoute } from "@/components/auth";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import Tokens from "./pages/Tokens";
 import FigmaVariables from "./pages/FigmaVariables";
-import Components from "./pages/Components";
-import CodeGenerator from "./pages/CodeGenerator";
-import Projects from "./pages/Projects";
 import Benchmark from "./pages/Benchmark";
 import AIAssistant from "./pages/AIAssistant";
 import Versioning from "./pages/Versioning";
@@ -18,6 +15,9 @@ import ScenariosAutomation from "./pages/ScenariosAutomation";
 import Login from "./pages/Login";
 import OAuthCallback from "./pages/OAuthCallback";
 import NotFound from "./pages/NotFound";
+import AddFigmaWizard from "./pages/AddFigmaWizard";
+import DesignSystemDetails from "./pages/DesignSystemDetails";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient();
 
@@ -29,8 +29,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Rota raiz redireciona para login */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* Rota raiz redireciona para dashboard */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             
             {/* Rota pública - Login */}
             <Route path="/login" element={
@@ -41,8 +41,23 @@ const App = () => (
             
             {/* Rota pública - OAuth Callback */}
             <Route path="/oauth/callback" element={<OAuthCallback />} />
-            
+
             {/* Rotas protegidas */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <AppLayout><Dashboard /></AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/add-figma" element={
+              <ProtectedRoute>
+                <AppLayout><AddFigmaWizard /></AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/design-systems/:id" element={
+              <ProtectedRoute>
+                <AppLayout><DesignSystemDetails /></AppLayout>
+              </ProtectedRoute>
+            } />
             <Route path="/tokens" element={
               <ProtectedRoute>
                 <AppLayout><Tokens /></AppLayout>
@@ -51,21 +66,6 @@ const App = () => (
             <Route path="/figma-sync" element={
               <ProtectedRoute>
                 <AppLayout><FigmaVariables /></AppLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/components" element={
-              <ProtectedRoute>
-                <AppLayout><Components /></AppLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/code-generator" element={
-              <ProtectedRoute>
-                <AppLayout><CodeGenerator /></AppLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/projects" element={
-              <ProtectedRoute>
-                <AppLayout><Projects /></AppLayout>
               </ProtectedRoute>
             } />
             <Route path="/benchmark" element={
