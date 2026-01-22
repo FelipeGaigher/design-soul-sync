@@ -5,7 +5,7 @@ import { ProjectStatus, UserRole } from '@prisma/client';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll(userId: string) {
     // Retorna projetos onde o usuário é dono ou membro
@@ -194,25 +194,6 @@ export class ProjectsService {
         return acc;
       }, {} as Record<string, number>),
     };
-  }
-
-  async getComponents(projectId: string, userId: string) {
-    await this.checkAccess(projectId, userId);
-
-    const components = await this.prisma.component.findMany({
-      where: { projectId },
-      include: {
-        variants: true,
-        tokens: {
-          include: {
-            token: true,
-          },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
-
-    return components;
   }
 
   // Helper: verificar se é dono do projeto

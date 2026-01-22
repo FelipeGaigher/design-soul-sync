@@ -5,6 +5,10 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ExternalLink, Copy } from 'lucide-react';
+<<<<<<< HEAD:src/pages/DesignSystemDetails.tsx
+=======
+import { toast } from '@/hooks/use-toast';
+>>>>>>> main:frontend/src/pages/DesignSystemDetails.tsx
 
 export default function DesignSystemDetails() {
     const { id } = useParams();
@@ -66,20 +70,34 @@ export default function DesignSystemDetails() {
                         <CardHeader><CardTitle>Status da Sincronização</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-3 gap-4">
+<<<<<<< HEAD:src/pages/DesignSystemDetails.tsx
                                 <div className="p-4 bg-gray-50 rounded">
                                     <div className="text-sm text-gray-500">Última Importação</div>
                                     <div className="font-medium">{designSystem.lastImportedAt ? new Date(designSystem.lastImportedAt).toLocaleString() : 'Nunca'}</div>
                                 </div>
                                 <div className="p-4 bg-gray-50 rounded">
                                     <div className="text-sm text-gray-500">Status</div>
+=======
+                                <div className="p-4 bg-muted/30 rounded">
+                                    <div className="text-sm text-muted-foreground">Última Importação</div>
+                                    <div className="font-medium">{designSystem.lastImportedAt ? new Date(designSystem.lastImportedAt).toLocaleString() : 'Nunca'}</div>
+                                </div>
+                                <div className="p-4 bg-muted/30 rounded">
+                                    <div className="text-sm text-muted-foreground">Status</div>
+>>>>>>> main:frontend/src/pages/DesignSystemDetails.tsx
                                     <div className="font-medium">
                                         <Badge variant={designSystem.importStatus === 'SUCCESS' ? 'default' : 'destructive'}>
                                             {designSystem.importStatus || 'Idle'}
                                         </Badge>
                                     </div>
                                 </div>
+<<<<<<< HEAD:src/pages/DesignSystemDetails.tsx
                                 <div className="p-4 bg-gray-50 rounded">
                                     <div className="text-sm text-gray-500">Versão</div>
+=======
+                                <div className="p-4 bg-muted/30 rounded">
+                                    <div className="text-sm text-muted-foreground">Versão</div>
+>>>>>>> main:frontend/src/pages/DesignSystemDetails.tsx
                                     <div className="font-medium">v1.0.0</div>
                                 </div>
                             </div>
@@ -150,11 +168,19 @@ function ComponentsTab({ designSystemId }: { designSystemId: string }) {
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                     {components.map((comp: any) => (
                         <div key={comp.id} className="border rounded-lg overflow-hidden group hover:shadow-md transition">
+<<<<<<< HEAD:src/pages/DesignSystemDetails.tsx
                             <div className="h-32 bg-gray-100 flex items-center justify-center relative">
                                 {comp.previewUrl ? (
                                     <img src={comp.previewUrl} className="w-full h-full object-contain" />
                                 ) : (
                                     <span className="text-gray-400 text-xs">Sem preview</span>
+=======
+                            <div className="h-32 bg-muted/30 flex items-center justify-center relative">
+                                {comp.previewUrl ? (
+                                    <img src={comp.previewUrl} className="w-full h-full object-contain" />
+                                ) : (
+                                    <span className="text-muted-foreground text-xs">Sem preview</span>
+>>>>>>> main:frontend/src/pages/DesignSystemDetails.tsx
                                 )}
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs cursor-pointer">
                                     Ver Detalhes
@@ -176,6 +202,14 @@ function CodeTab({ designSystemId }: { designSystemId: string }) {
     const [framework, setFramework] = useState('react-tailwind');
     const [snippet, setSnippet] = useState('');
 
+<<<<<<< HEAD:src/pages/DesignSystemDetails.tsx
+=======
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(snippet);
+        toast({ title: "Código copiado!" });
+    };
+
+>>>>>>> main:frontend/src/pages/DesignSystemDetails.tsx
     useEffect(() => {
         if (framework === 'react-tailwind') {
             setSnippet(`// tailwind.config.js
@@ -216,7 +250,11 @@ module.exports = {
                 <Card>
                     <CardHeader className="flex flex-row justify-between items-center">
                         <CardTitle>Snippet Gerado</CardTitle>
+<<<<<<< HEAD:src/pages/DesignSystemDetails.tsx
                         <Button variant="ghost" size="sm"><Copy className="w-4 h-4 mr-2" /> Copiar</Button>
+=======
+                        <Button variant="ghost" size="sm" onClick={copyToClipboard}><Copy className="w-4 h-4 mr-2" /> Copiar</Button>
+>>>>>>> main:frontend/src/pages/DesignSystemDetails.tsx
                     </CardHeader>
                     <CardContent>
                         <pre className="bg-slate-950 text-slate-50 p-4 rounded-lg overflow-x-auto text-sm font-mono">

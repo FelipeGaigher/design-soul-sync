@@ -19,7 +19,7 @@ interface FigmaUser {
 @Injectable()
 export class FigmaOAuthService {
   private readonly logger = new Logger(FigmaOAuthService.name);
-  
+
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly redirectUri: string;
@@ -74,7 +74,7 @@ export class FigmaOAuthService {
 
   async refreshAccessToken(refreshToken: string): Promise<FigmaTokenResponse> {
     this.logger.log(`Refreshing token with refresh_token prefix: ${refreshToken?.substring(0, 15)}...`);
-    
+
     const response = await fetch('https://api.figma.com/v1/oauth/refresh', {
       method: 'POST',
       headers: {
@@ -115,7 +115,7 @@ export class FigmaOAuthService {
   async authenticate(code: string): Promise<OAuthUserInfo> {
     // Exchange code for tokens
     const tokens = await this.exchangeCodeForTokens(code);
-    
+
     // Get user info
     const figmaUser = await this.getUserInfo(tokens.access_token);
 
@@ -135,7 +135,7 @@ export class FigmaOAuthService {
     // Figma API doesn't have a direct endpoint to list all user's files
     // The files:read scope and /v1/me/files endpoint are not available for OAuth apps
     // Users need to provide file URLs directly or use team projects endpoint
-    
+
     // For now, we'll verify the token is valid by calling /v1/me
     // and return an empty array, letting users import files by URL
     try {
@@ -163,7 +163,7 @@ export class FigmaOAuthService {
 
   async getFileInfo(accessToken: string, fileKey: string): Promise<any> {
     this.logger.log(`Fetching file ${fileKey} with token: ${accessToken.substring(0, 20)}...`);
-    
+
     const response = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=1`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -173,7 +173,7 @@ export class FigmaOAuthService {
     if (!response.ok) {
       const errorText = await response.text();
       this.logger.error(`Failed to fetch Figma file (${response.status}):`, errorText);
-      
+
       // Include status in error message for retry logic
       const error = new Error(`Figma API error: ${response.status}`);
       (error as any).status = response.status;
@@ -190,54 +190,6 @@ export class FigmaOAuthService {
     };
   }
 
-  async getFileComponents(accessToken: string, fileKey: string): Promise<Array<any>> {
-    this.logger.log(`Fetching components for file ${fileKey}...`);
-
-    const response = await fetch(`https://api.figma.com/v1/files/${fileKey}`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      this.logger.error(`Failed to fetch Figma file for components (${response.status}):`, errorText);
-      const error = new Error(`Figma API error: ${response.status}`);
-      (error as any).status = response.status;
-      throw error;
-    }
-
-    const data = await response.json();
-
-    const components: Array<any> = [];
-
-    // Traverse document tree recursively to find COMPONENT and COMPONENT_SET nodes
-    function traverse(node: any, parent?: any) {
-      if (!node) return;
-
-      if (node.type === 'COMPONENT' || node.type === 'COMPONENT_SET') {
-        const comp: any = {
-          id: node.id,
-          name: node.name || (node.componentId || node.id),
-          type: node.type,
-          children: Array.isArray(node.children) ? node.children.map((c: any) => ({ id: c.id, name: c.name, type: c.type })) : [],
-        };
-
-        components.push(comp);
-      }
-
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) traverse(child, node);
-      }
-    }
-
-    // The file root is in data.document
-    traverse(data.document);
-
-    this.logger.log(`Found ${components.length} components in file ${fileKey}`);
-    return components;
-  }
-
   async getFileVariables(accessToken: string, fileKey: string): Promise<any> {
     const response = await fetch(`https://api.figma.com/v1/files/${fileKey}/variables/local`, {
       headers: {
@@ -248,7 +200,7 @@ export class FigmaOAuthService {
     if (!response.ok) {
       const errorText = await response.text();
       this.logger.error(`Failed to fetch Figma variables (${response.status}):`, errorText);
-      
+
       const error = new Error(`Figma API error: ${response.status}`);
       (error as any).status = response.status;
       throw error;

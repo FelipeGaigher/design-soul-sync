@@ -100,10 +100,4 @@ export const projectsService = {
     const response = await api.delete(`/projects/${projectId}/members/${userId}`);
     if (response.error) throw new Error(response.error);
   },
-
-  async getComponents(projectId: string): Promise<any[]> {
-    const response = await api.get<any[]>(`/projects/${projectId}/components`);
-    if (response.error) throw new Error(response.error);
-    return response.data || [];
-  },
 };

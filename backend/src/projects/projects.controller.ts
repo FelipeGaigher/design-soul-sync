@@ -19,7 +19,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('projects')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(private readonly projectsService: ProjectsService) { }
 
   @Get()
   @ApiOperation({ summary: 'Listar projetos do usuário' })
@@ -41,12 +41,6 @@ export class ProjectsController {
   @ApiResponse({ status: 200, description: 'Estatísticas' })
   getStats(@Param('id') id: string, @Request() req) {
     return this.projectsService.getStats(id, req.user.sub);
-  }
-
-  @Get(':id/components')
-  @ApiOperation({ summary: 'List components for a project' })
-  getComponents(@Param('id') id: string, @Request() req) {
-    return this.projectsService.getComponents(id, req.user.sub);
   }
 
   @Post()

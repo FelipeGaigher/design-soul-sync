@@ -1,4 +1,8 @@
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
 import React, { useState, useEffect } from 'react';
+=======
+import React, { useState } from 'react';
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,11 +30,18 @@ enum Step {
 
 export default function AddFigmaWizard() {
     const navigate = useNavigate();
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
     // const { toast } = useToast();
     const [step, setStep] = useState<Step>(Step.INPUT);
     const [formData, setFormData] = useState({
         name: '',
         companyId: '', // Optional or hidden
+=======
+    const [step, setStep] = useState<Step>(Step.INPUT);
+    const [formData, setFormData] = useState({
+        name: '',
+        companyId: '',
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
         figmaUrl: '',
     });
     const [previewData, setPreviewData] = useState<PreviewData | null>(null);
@@ -43,7 +54,11 @@ export default function AddFigmaWizard() {
         setLoading(true);
         setError(null);
         try {
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
             const response = await fetch('/api/figma/preview', { // Proxy configured in vite.config.ts
+=======
+            const response = await fetch('/api/figma/preview', {
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ figmaUrl: formData.figmaUrl })
@@ -56,7 +71,10 @@ export default function AddFigmaWizard() {
 
             const data = await response.json();
             setPreviewData(data);
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
             // Auto-fill name if empty
+=======
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
             if (!formData.name) setFormData(prev => ({ ...prev, name: data.fileName }));
             setStep(Step.PREVIEW);
         } catch (err: any) {
@@ -72,7 +90,11 @@ export default function AddFigmaWizard() {
             // 1. Create Design System
             const createRes = await fetch('/api/design-systems', {
                 method: 'POST',
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` }, // Assuming auth
+=======
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                 body: JSON.stringify(formData)
             });
             if (!createRes.ok) throw new Error('Falha ao criar Design System');
@@ -80,7 +102,11 @@ export default function AddFigmaWizard() {
             setCreatedDesignSystemId(ds.id);
 
             // 2. Trigger Import
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
             const importRes = await fetch(`/api/design-systems/${ds.id}/import`, {
+=======
+            await fetch(`/api/design-systems/${ds.id}/import`, {
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
@@ -89,10 +115,17 @@ export default function AddFigmaWizard() {
             let attempts = 0;
             const interval = setInterval(async () => {
                 attempts++;
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
                 if (attempts > 60) { // 1 min timeout
                     clearInterval(interval);
                     setError('Tempo limite excedido.');
                     setStep(Step.SUCCESS); // Or error state
+=======
+                if (attempts > 60) {
+                    clearInterval(interval);
+                    setError('Tempo limite excedido.');
+                    setStep(Step.SUCCESS);
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                     return;
                 }
 
@@ -142,7 +175,11 @@ export default function AddFigmaWizard() {
                                     value={formData.figmaUrl}
                                     onChange={e => setFormData({ ...formData, figmaUrl: e.target.value })}
                                 />
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
                                 <p className="text-sm text-gray-500 mt-1">Cole o link completo do arquivo (modo de visualização ou dev).</p>
+=======
+                                <p className="text-sm text-muted-foreground mt-1">Cole o link completo do arquivo (modo de visualização ou dev).</p>
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                             </div>
                             <div>
                                 <Label>Nome do Design System</Label>
@@ -152,7 +189,11 @@ export default function AddFigmaWizard() {
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 />
                             </div>
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
                             {error && <div className="text-red-500 text-sm">{error}</div>}
+=======
+                            {error && <div className="text-destructive text-sm">{error}</div>}
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                         </div>
                     )}
 
@@ -164,8 +205,13 @@ export default function AddFigmaWizard() {
                                 )}
                                 <div>
                                     <h3 className="text-lg font-bold">{previewData.fileName}</h3>
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
                                     <p className="text-sm text-gray-500">Última alteração: {new Date(previewData.lastModified).toLocaleDateString()}</p>
                                     <p className="text-sm text-gray-500">{previewData.pages.length} páginas encontradas</p>
+=======
+                                    <p className="text-sm text-muted-foreground">Última alteração: {new Date(previewData.lastModified).toLocaleDateString()}</p>
+                                    <p className="text-sm text-muted-foreground">{previewData.pages.length} páginas encontradas</p>
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                                 </div>
                             </div>
 
@@ -177,7 +223,11 @@ export default function AddFigmaWizard() {
                                             {comp.thumbnailUrl ? (
                                                 <img src={comp.thumbnailUrl} className="w-full h-16 object-contain mb-2" />
                                             ) : (
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
                                                 <div className="w-full h-16 bg-gray-100 mb-2 flex items-center justify-center">No thumb</div>
+=======
+                                                <div className="w-full h-16 bg-muted/30 mb-2 flex items-center justify-center">No thumb</div>
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                                             )}
                                             <div className="truncate" title={comp.name}>{comp.name}</div>
                                         </div>
@@ -189,6 +239,7 @@ export default function AddFigmaWizard() {
 
                     {step === Step.LOADING && (
                         <div className="py-20 text-center">
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
                             <Loader2 className="animate-spin h-12 w-12 mx-auto mb-4 text-blue-600" />
                             <h3 className="text-xl font-semibold">Importando seu Design System...</h3>
                             <p className="text-gray-500 mt-2">Isso pode levar alguns instantes. Estamos processando tokens e componentes.</p>
@@ -196,6 +247,15 @@ export default function AddFigmaWizard() {
                             <div className="mt-8 max-w-xs mx-auto space-y-2 text-left text-sm text-gray-400">
                                 <div className="flex items-center text-green-600"><CheckCircle className="w-4 h-4 mr-2" /> Conectado ao Figma</div>
                                 <div className="flex items-center text-blue-600"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Importando Tokens e Componentes</div>
+=======
+                            <Loader2 className="animate-spin h-12 w-12 mx-auto mb-4 text-primary" />
+                            <h3 className="text-xl font-semibold">Importando seu Design System...</h3>
+                            <p className="text-muted-foreground mt-2">Isso pode levar alguns instantes. Estamos processando tokens e componentes.</p>
+
+                            <div className="mt-8 max-w-xs mx-auto space-y-2 text-left text-sm text-muted-foreground">
+                                <div className="flex items-center text-green-600"><CheckCircle className="w-4 h-4 mr-2" /> Conectado ao Figma</div>
+                                <div className="flex items-center text-primary"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Importando Tokens e Componentes</div>
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                             </div>
                         </div>
                     )}
@@ -206,10 +266,17 @@ export default function AddFigmaWizard() {
                                 <CheckCircle className="w-8 h-8" />
                             </div>
                             <h2 className="text-2xl font-bold mb-2">Importação Concluída!</h2>
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
                             <p className="mb-6 text-gray-600">
                                 Seu Design System <strong>{formData.name}</strong> foi importado com sucesso.
                             </p>
                             <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto text-left bg-gray-50 p-4 rounded">
+=======
+                            <p className="mb-6 text-muted-foreground">
+                                Seu Design System <strong>{formData.name}</strong> foi importado com sucesso.
+                            </p>
+                            <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto text-left bg-muted/30 p-4 rounded">
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                                 <div><strong>Tokens:</strong> {importStats.tokens}</div>
                                 <div><strong>Componentes:</strong> {importStats.components}</div>
                             </div>
@@ -232,7 +299,11 @@ export default function AddFigmaWizard() {
                     {step === Step.SUCCESS && (
                         <div className="flex gap-4 w-full">
                             <Button variant="outline" className="flex-1" onClick={() => navigate('/code-generator')}>Gerar Código</Button>
+<<<<<<< HEAD:src/pages/AddFigmaWizard.tsx
                             <Button className="flex-1" onClick={() => navigate(`/projects/${createdDesignSystemId}`)}>Ver Design System</Button>
+=======
+                            <Button className="flex-1" onClick={() => navigate(`/design-systems/${createdDesignSystemId}`)}>Ver Design System</Button>
+>>>>>>> main:frontend/src/pages/AddFigmaWizard.tsx
                         </div>
                     )}
                 </CardFooter>

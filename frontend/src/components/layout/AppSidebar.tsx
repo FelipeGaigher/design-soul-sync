@@ -1,12 +1,9 @@
-import { 
-  LayoutDashboard, 
-  Coins, 
-  Shuffle, 
-  Box, 
-  Code2, 
-  GitBranch, 
-  Folder, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Coins,
+  Shuffle,
+  GitBranch,
+  BarChart3,
   Workflow,
   Sparkles
 } from "lucide-react";
@@ -24,13 +21,10 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Tokens", url: "/tokens", icon: Coins },
   { title: "Variáveis do Figma", url: "/figma-sync", icon: Shuffle },
-  { title: "Componentes", url: "/components", icon: Box },
-  { title: "Gerador de Código", url: "/code-generator", icon: Code2 },
   { title: "Versionamento", url: "/versioning", icon: GitBranch },
-  { title: "Projetos", url: "/projects", icon: Folder },
   { title: "Benchmark", url: "/benchmark", icon: BarChart3 },
   { title: "Cenários & Automação", url: "/scenarios", icon: Workflow },
   { title: "Assistente IA", url: "/ai-assistant", icon: Sparkles },
@@ -58,8 +52,8 @@ export function AppSidebar() {
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
+                    <NavLink
+                      to={item.url}
                       end
                       className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-smooth hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       activeClassName="bg-primary text-primary-foreground font-medium hover:bg-primary hover:text-primary-foreground"

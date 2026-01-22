@@ -46,11 +46,11 @@ export class FigmaController {
   constructor(
     private figmaOAuthService: FigmaOAuthService,
     private prisma: PrismaService,
-  ) {}
+  ) { }
 
   private async getUserAccessToken(userId: string): Promise<string> {
     this.logger.log(`Getting access token for user: ${userId}`);
-    
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { figmaAccessToken: true, figmaRefreshToken: true },
@@ -77,7 +77,7 @@ export class FigmaController {
 
   private async refreshUserToken(userId: string): Promise<string> {
     this.logger.log(`Refreshing token for user: ${userId}`);
-    
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { figmaRefreshToken: true },
@@ -92,20 +92,20 @@ export class FigmaController {
 
     try {
       const newTokens = await this.figmaOAuthService.refreshAccessToken(user.figmaRefreshToken);
-      
+
       this.logger.log(`New access token prefix: ${newTokens.access_token?.substring(0, 15)}...`);
       this.logger.log(`New refresh token prefix: ${newTokens.refresh_token?.substring(0, 15) || '(not returned)'}...`);
-      
+
       // Update tokens in database - only update refresh token if a new one was provided
       const updateData: any = {
         figmaAccessToken: newTokens.access_token,
       };
-      
+
       // Figma refresh doesn't always return a new refresh_token
       if (newTokens.refresh_token) {
         updateData.figmaRefreshToken = newTokens.refresh_token;
       }
-      
+
       await this.prisma.user.update({
         where: { id: userId },
         data: updateData,
@@ -133,10 +133,10 @@ export class FigmaController {
     } catch (error) {
       // If we get a 403 or 401, try refreshing the token
       const status = (error as any).status;
-      const shouldRefresh = status === 403 || status === 401 || 
-                           error.message?.includes('403') || 
-                           error.message?.includes('401');
-      
+      const shouldRefresh = status === 403 || status === 401 ||
+        error.message?.includes('403') ||
+        error.message?.includes('401');
+
       if (shouldRefresh) {
         this.logger.log(`Got ${status || 'auth error'}, attempting token refresh...`);
         try {
@@ -171,7 +171,7 @@ export class FigmaController {
       // Figma API doesn't have a direct teams endpoint for regular OAuth
       // We need to get user info which includes team memberships
       const userInfo = await this.figmaOAuthService.getUserInfo(accessToken);
-      
+
       // For now, return a mock response since teams require enterprise API
       // In production, you would use the Enterprise API for team listing
       return {
@@ -381,61 +381,6 @@ export class FigmaController {
           figmaLastSyncAt: new Date(),
         },
       });
-
-      // Import components from Figma file
-      try {
-        const components = await this.callWithTokenRefresh(
-          req.user.sub,
-          (token) => this.figmaOAuthService.getFileComponents(token, body.fileKey),
-        );
-
-        for (const comp of components) {
-          // Upsert component by project + name
-          const existing = await this.prisma.component.findFirst({
-            where: { projectId, name: comp.name },
-          });
-
-          if (existing) {
-            await this.prisma.component.update({
-              where: { id: existing.id },
-              data: {
-                figmaComponentId: comp.id,
-                figmaNodeId: comp.id,
-                updatedAt: new Date(),
-              },
-            });
-          } else {
-            const created = await this.prisma.component.create({
-              data: {
-                name: comp.name,
-                description: `Imported from Figma file ${body.fileKey}`,
-                category: 'FUNDAMENTAIS',
-                figmaComponentId: comp.id,
-                figmaNodeId: comp.id,
-                projectId,
-              },
-            });
-
-            // If it's a COMPONENT_SET, create simple variants for children
-            if (comp.type === 'COMPONENT_SET' && Array.isArray(comp.children)) {
-              for (const child of comp.children) {
-                await this.prisma.componentVariant.create({
-                  data: {
-                    name: child.name || child.id,
-                    tokens: {},
-                    props: {},
-                    previewUrl: null,
-                    componentId: created.id,
-                  },
-                });
-              }
-            }
-          }
-        }
-      } catch (err) {
-        // Non-fatal: log but continue
-        this.logger.error(`Failed to import components: ${err.message}`);
-      }
 
       return {
         imported: imported.length,

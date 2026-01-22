@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useState, useEffect } from "react";
+=======
+import { useState } from "react";
+>>>>>>> main
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +13,7 @@ import { ComponentCard } from "@/components/components/ComponentCard";
 
 type Category = "fundamentais" | "feedback" | "layout" | "navegacao" | "dados";
 
+<<<<<<< HEAD
 import { useProject } from "@/contexts/ProjectContext";
 import { projectsService } from "@/services/projects.service";
 
@@ -18,6 +23,11 @@ export default function Components() {
   const [loading, setLoading] = useState(false);
   const [fetchedComponents, setFetchedComponents] = useState<any[]>([]);
   const { activeProject } = useProject();
+=======
+export default function Components() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<Category>("fundamentais");
+>>>>>>> main
 
   const categories = [
     { id: "fundamentais" as Category, label: "Fundamentais", icon: Layers, count: 12 },
@@ -68,6 +78,7 @@ export default function Components() {
     ]
   };
 
+<<<<<<< HEAD
   // Map fetched components to UI format
   const mappedComponents = fetchedComponents.map((c) => ({
     name: c.name,
@@ -78,11 +89,15 @@ export default function Components() {
   }));
 
   const currentComponents = mappedComponents.filter(cm => cm.category.toLowerCase().includes(activeCategory));
+=======
+  const currentComponents = components[activeCategory];
+>>>>>>> main
   const filteredComponents = currentComponents.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+<<<<<<< HEAD
   useEffect(() => {
     async function load() {
       if (!activeProject?.id) return;
@@ -100,6 +115,8 @@ export default function Components() {
     load();
   }, [activeProject]);
 
+=======
+>>>>>>> main
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
