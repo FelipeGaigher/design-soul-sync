@@ -4,6 +4,17 @@
 
 **URL**: https://lovable.dev/projects/17c6fd19-4140-41bc-b42f-dafaf375082a
 
+## Branch workflow
+
+- develop: all day-to-day work and approved changes
+- main: stable releases
+- homolog: reserved for production validation (not used yet)
+
+Flow:
+- open PRs into develop
+- when approved, merge develop into main
+- if/when needed, deploy from homolog (created from main)
+
 ## How can I edit this code?
 
 There are several ways of editing your application.
