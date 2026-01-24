@@ -1,26 +1,54 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # Aplicação Backend (descomentar para uso em dev)
-  # api:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.dev
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - NODE_ENV=development
-  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/tokensync?schema=public
-  #     - REDIS_HOST=redis
-  #   volumes:
-  #     - .:/app
-  #     - /app/node_modules
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   command: npm run start:dev
+  # Backend API (dev)
+  api:
+    image: node:20-bullseye
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - CORS_ORIGINS=http://localhost:5173
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/tokensync?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=tokensync
+      - S3_REGION=us-east-1
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: >
+      /bin/sh -c "npm install && npm run start:dev"
+
+  # Frontend (Vite dev server)
+  frontend:
+    image: node:20-bullseye
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    depends_on:
+      api:
+        condition: service_started
+    command: >
+      /bin/sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
 
   # PostgreSQL
   postgres:
@@ -56,7 +84,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # MinIO (S3 compatível) para armazenamento de arquivos
+  # MinIO (S3 compatible) for file storage
   minio:
     image: minio/minio
     container_name: tokensync-minio
@@ -76,19 +104,14 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Criar bucket inicial no MinIO
+  # Create initial bucket in MinIO
   minio-init:
     image: minio/mc
     depends_on:
       minio:
         condition: service_healthy
     entrypoint: >
-      /bin/sh -c "
-      mc alias set myminio http://minio:9000 minioadmin minioadmin;
-      mc mb --ignore-existing myminio/tokensync;
-      mc anonymous set public myminio/tokensync;
-      exit 0;
-      "
+      /bin/sh -c "mc alias set myminio http://minio:9000 minioadmin minioadmin; mc mb --ignore-existing myminio/tokensync; mc anonymous set public myminio/tokensync; exit 0;"
 
 volumes:
   postgres_data:
