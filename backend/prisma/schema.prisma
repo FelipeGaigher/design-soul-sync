@@ -116,10 +116,11 @@ model User {
   // Relations
   projects          ProjectMember[]
   ownedProjects     Project[]       @relation("ProjectOwner")
+  ownedCompanies    Company[]       @relation("CompanyOwner")
   tokenHistory      TokenHistory[]
   versionHistory    VersionHistory[]
   aiConversations   AIConversation[]
-  
+
   @@map("users")
 }
 
@@ -134,28 +135,67 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model Company {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  logoUrl     String?
+
+  // Owner
+  ownerId     String
+  owner       User      @relation("CompanyOwner", fields: [ownerId], references: [id])
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  projects    Project[]
+
+  @@index([ownerId])
+  @@map("companies")
+}
+
 model Project {
   id              String        @id @default(uuid())
   name            String
   description     String?
   status          ProjectStatus @default(ACTIVE)
-  
+
   // Figma
   figmaFileId     String?
   figmaFileName   String?
+  figmaFileUrl    String?
   figmaLastSyncAt DateTime?
-  
+
+  // Import status
+  importStatus    String?       // PENDING, IMPORTING, SUCCESS, ERROR
+  importProgress  Int?          @default(0)
+  importErrorMessage String?
+
+  // Stats
+  componentsCount Int           @default(0)
+  colorsCount     Int           @default(0)
+  typographyCount Int           @default(0)
+  effectsCount    Int           @default(0)
+  alertsCount     Int           @default(0)
+
   // Settings (JSON)
   settings        Json          @default("{}")
-  
+
+  // Company (optional)
+  companyId       String?
+  company         Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
   // Owner
   ownerId         String
   owner           User          @relation("ProjectOwner", fields: [ownerId], references: [id])
-  
+
   // Timestamps
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  
+  lastImportedAt  DateTime?
+
   // Relations
   members         ProjectMember[]
   tokens          Token[]
@@ -166,8 +206,9 @@ model Project {
   automations     Automation[]
   benchmarks      Benchmark[]
   aiConversations AIConversation[]
-  
+
   @@index([ownerId])
+  @@index([companyId])
   @@index([status])
   @@map("projects")
 }

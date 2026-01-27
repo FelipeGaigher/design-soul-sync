@@ -7,7 +7,10 @@ export interface Project {
   status: 'ACTIVE' | 'ARCHIVED';
   figmaFileId?: string;
   figmaFileName?: string;
+  figmaFileUrl?: string;
   figmaLastSyncAt?: string;
+  companyId?: string | null;
+  companyName?: string | null;
   ownerId: string;
   owner: {
     id: string;
@@ -19,6 +22,7 @@ export interface Project {
   tokensCount: number;
   componentsCount: number;
   divergencesCount?: number;
+  alertsCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +42,8 @@ export interface CreateProjectData {
   name: string;
   description?: string;
   figmaFileId?: string;
+  figmaFileUrl?: string;
+  companyId?: string | null;
 }
 
 export interface UpdateProjectData {

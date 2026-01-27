@@ -1,10 +1,9 @@
+import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  Coins,
-  Shuffle,
-  GitBranch,
-  BarChart3,
-  Workflow,
+  FolderOpen,
+  Users,
+  Settings,
   Sparkles
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -21,13 +20,10 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Tokens", url: "/tokens", icon: Coins },
-  { title: "Variáveis do Figma", url: "/figma-sync", icon: Shuffle },
-  { title: "Versionamento", url: "/versioning", icon: GitBranch },
-  { title: "Benchmark", url: "/benchmark", icon: BarChart3 },
-  { title: "Cenários & Automação", url: "/scenarios", icon: Workflow },
-  { title: "Assistente IA", url: "/ai-assistant", icon: Sparkles },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Projetos", url: "/projects", icon: FolderOpen },
+  { title: "Usuários", url: "/users", icon: Users },
+  { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -45,7 +41,7 @@ export function AppSidebar() {
       <SidebarContent className="px-3 py-4">
         <SidebarGroup>
           <SidebarGroupLabel className="px-3 text-xs font-medium text-muted-foreground">
-            Plataforma
+            Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -54,7 +50,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
-                      end
+                      end={item.url === "/"}
                       className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-smooth hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       activeClassName="bg-primary text-primary-foreground font-medium hover:bg-primary hover:text-primary-foreground"
                     >

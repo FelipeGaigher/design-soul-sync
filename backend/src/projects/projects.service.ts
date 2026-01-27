@@ -8,7 +8,7 @@ export class ProjectsService {
   constructor(private prisma: PrismaService) { }
 
   async findAll(userId: string) {
-    // Retorna projetos onde o usuário é dono ou membro
+    // Retorna projetos onde o usuario e dono ou membro
     const projects = await this.prisma.project.findMany({
       where: {
         OR: [
@@ -20,6 +20,9 @@ export class ProjectsService {
         owner: {
           select: { id: true, name: true, email: true, avatarUrl: true },
         },
+        company: {
+          select: { id: true, name: true },
+        },
         members: {
           include: {
             user: {
@@ -28,7 +31,7 @@ export class ProjectsService {
           },
         },
         _count: {
-          select: { tokens: true, components: true },
+          select: { tokens: true, components: true, divergences: true },
         },
       },
       orderBy: { updatedAt: 'desc' },
@@ -37,7 +40,9 @@ export class ProjectsService {
     return projects.map(project => ({
       ...project,
       tokensCount: project._count.tokens,
-      componentsCount: project._count.components,
+      componentsCount: project.componentsCount || project._count.components,
+      alertsCount: project.alertsCount || project._count.divergences,
+      companyName: project.company?.name || null,
       _count: undefined,
     }));
   }
@@ -79,6 +84,21 @@ export class ProjectsService {
   }
 
   async create(createProjectDto: CreateProjectDto, userId: string) {
+    if (createProjectDto.companyId) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: createProjectDto.companyId },
+        select: { ownerId: true },
+      });
+
+      if (!company) {
+        throw new NotFoundException('Empresa nao encontrada');
+      }
+
+      if (company.ownerId !== userId) {
+        throw new ForbiddenException('Sem permissao para usar esta empresa');
+      }
+    }
+
     const project = await this.prisma.project.create({
       data: {
         ...createProjectDto,

@@ -6,18 +6,15 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute, PublicRoute } from "@/components/auth";
 import { ProjectProvider } from "@/contexts/ProjectContext";
-import Tokens from "./pages/Tokens";
-import FigmaVariables from "./pages/FigmaVariables";
-import Benchmark from "./pages/Benchmark";
-import AIAssistant from "./pages/AIAssistant";
-import Versioning from "./pages/Versioning";
-import ScenariosAutomation from "./pages/ScenariosAutomation";
 import Login from "./pages/Login";
 import OAuthCallback from "./pages/OAuthCallback";
 import NotFound from "./pages/NotFound";
-import AddFigmaWizard from "./pages/AddFigmaWizard";
-import DesignSystemDetails from "./pages/DesignSystemDetails";
 import Dashboard from "./pages/Dashboard";
+import Projects from "./pages/Projects";
+import Users from "./pages/Users";
+import Settings from "./pages/Settings";
+import ImportFlow from "./pages/ImportFlow";
+import DesignSystemView from "./pages/DesignSystemView";
 
 const queryClient = new QueryClient();
 
@@ -29,63 +26,51 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Rota raiz redireciona para dashboard */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* Rota raiz e dashboard */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <AppLayout><Dashboard /></AppLayout>
+              </ProtectedRoute>
+            } />
 
-            {/* Rota pública - Login */}
+            {/* Rota publica - Login */}
             <Route path="/login" element={
               <PublicRoute>
                 <Login />
               </PublicRoute>
             } />
 
-            {/* Rota pública - OAuth Callback */}
+            {/* Rota publica - OAuth Callback */}
             <Route path="/oauth/callback" element={<OAuthCallback />} />
 
             {/* Rotas protegidas */}
-            <Route path="/dashboard" element={
+            <Route path="/projects" element={
               <ProtectedRoute>
-                <AppLayout><Dashboard /></AppLayout>
+                <AppLayout><Projects /></AppLayout>
               </ProtectedRoute>
             } />
-            <Route path="/add-figma" element={
+
+            <Route path="/users" element={
               <ProtectedRoute>
-                <AppLayout><AddFigmaWizard /></AppLayout>
+                <AppLayout><Users /></AppLayout>
               </ProtectedRoute>
             } />
-            <Route path="/design-systems/:id" element={
+
+            <Route path="/settings" element={
               <ProtectedRoute>
-                <AppLayout><DesignSystemDetails /></AppLayout>
+                <AppLayout><Settings /></AppLayout>
               </ProtectedRoute>
             } />
-            <Route path="/tokens" element={
+
+            <Route path="/import/:projectId" element={
               <ProtectedRoute>
-                <AppLayout><Tokens /></AppLayout>
+                <AppLayout><ImportFlow /></AppLayout>
               </ProtectedRoute>
             } />
-            <Route path="/figma-sync" element={
+
+            <Route path="/design-system/:id" element={
               <ProtectedRoute>
-                <AppLayout><FigmaVariables /></AppLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/benchmark" element={
-              <ProtectedRoute>
-                <AppLayout><Benchmark /></AppLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/ai-assistant" element={
-              <ProtectedRoute>
-                <AppLayout><AIAssistant /></AppLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/versioning" element={
-              <ProtectedRoute>
-                <AppLayout><Versioning /></AppLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/scenarios" element={
-              <ProtectedRoute>
-                <AppLayout><ScenariosAutomation /></AppLayout>
+                <AppLayout><DesignSystemView /></AppLayout>
               </ProtectedRoute>
             } />
 

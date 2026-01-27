@@ -141,12 +141,12 @@ async function main() {
     { name: 'font/weight-bold', value: '700', type: TokenType.TYPOGRAPHY, category: 'Typography', description: 'Bold weight' },
     
     // Border Radius
-    { name: 'radius/none', value: '0', type: TokenType.BORDER, category: 'Borders', description: 'No radius' },
-    { name: 'radius/sm', value: '0.25rem', type: TokenType.BORDER, category: 'Borders', description: 'Small radius' },
-    { name: 'radius/md', value: '0.5rem', type: TokenType.BORDER, category: 'Borders', description: 'Medium radius' },
-    { name: 'radius/lg', value: '0.75rem', type: TokenType.BORDER, category: 'Borders', description: 'Large radius' },
-    { name: 'radius/xl', value: '1rem', type: TokenType.BORDER, category: 'Borders', description: 'Extra large radius' },
-    { name: 'radius/full', value: '9999px', type: TokenType.BORDER, category: 'Borders', description: 'Full radius' },
+    { name: 'radius/none', value: '0', type: TokenType.BORDER_RADIUS, category: 'Borders', description: 'No radius' },
+    { name: 'radius/sm', value: '0.25rem', type: TokenType.BORDER_RADIUS, category: 'Borders', description: 'Small radius' },
+    { name: 'radius/md', value: '0.5rem', type: TokenType.BORDER_RADIUS, category: 'Borders', description: 'Medium radius' },
+    { name: 'radius/lg', value: '0.75rem', type: TokenType.BORDER_RADIUS, category: 'Borders', description: 'Large radius' },
+    { name: 'radius/xl', value: '1rem', type: TokenType.BORDER_RADIUS, category: 'Borders', description: 'Extra large radius' },
+    { name: 'radius/full', value: '9999px', type: TokenType.BORDER_RADIUS, category: 'Borders', description: 'Full radius' },
     
     // Shadows
     { name: 'shadow/subtle', value: '0 1px 2px rgba(0,0,0,0.05)', type: TokenType.SHADOW, category: 'Effects', description: 'Subtle shadow' },
@@ -161,10 +161,10 @@ async function main() {
     { name: 'z-index/tooltip', value: '1070', type: TokenType.Z_INDEX, category: 'Layout', description: 'Tooltip z-index' },
     
     // Animations
-    { name: 'animation/duration-fast', value: '150ms', type: TokenType.ANIMATION, category: 'Animation', description: 'Fast animation' },
-    { name: 'animation/duration-normal', value: '300ms', type: TokenType.ANIMATION, category: 'Animation', description: 'Normal animation' },
-    { name: 'animation/duration-slow', value: '500ms', type: TokenType.ANIMATION, category: 'Animation', description: 'Slow animation' },
-    { name: 'animation/easing-default', value: 'cubic-bezier(0.4, 0, 0.2, 1)', type: TokenType.ANIMATION, category: 'Animation', description: 'Default easing' },
+    { name: 'animation/duration-fast', value: '150ms', type: TokenType.OTHER, category: 'Animation', description: 'Fast animation' },
+    { name: 'animation/duration-normal', value: '300ms', type: TokenType.OTHER, category: 'Animation', description: 'Normal animation' },
+    { name: 'animation/duration-slow', value: '500ms', type: TokenType.OTHER, category: 'Animation', description: 'Slow animation' },
+    { name: 'animation/easing-default', value: 'cubic-bezier(0.4, 0, 0.2, 1)', type: TokenType.OTHER, category: 'Animation', description: 'Default easing' },
     
     // Opacity
     { name: 'opacity/disabled', value: '0.5', type: TokenType.OPACITY, category: 'Effects', description: 'Disabled state opacity' },

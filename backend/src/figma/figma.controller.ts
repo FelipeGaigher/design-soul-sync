@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FigmaOAuthService } from '../auth/oauth/figma-oauth.service';
+import { FigmaParserService } from './figma-parser.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Figma Variable Types
@@ -45,6 +46,7 @@ export class FigmaController {
 
   constructor(
     private figmaOAuthService: FigmaOAuthService,
+    private figmaParserService: FigmaParserService,
     private prisma: PrismaService,
   ) { }
 
@@ -192,12 +194,15 @@ export class FigmaController {
 
   @Get('projects')
   async getProjects(@Request() req) {
-    const accessToken = await this.getUserAccessToken(req.user.sub);
-
     try {
+      const accessToken = await this.getUserAccessToken(req.user.sub);
       const projects = await this.figmaOAuthService.getProjects(accessToken);
       return { projects };
     } catch (error) {
+      // If token not found, return empty array (user needs to configure token)
+      if (error.message?.includes('not connected')) {
+        return { projects: [] };
+      }
       throw new HttpException(
         'Failed to fetch Figma projects',
         HttpStatus.BAD_REQUEST,
@@ -524,6 +529,177 @@ export class FigmaController {
       if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Failed to sync variables: ${error.message}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post('import-components/:projectId')
+  async importComponents(
+    @Request() req,
+    @Param('projectId') projectId: string,
+    @Body() body: { fileKey: string },
+  ) {
+    const userId = req.user.sub;
+
+    try {
+      // Verify project belongs to user
+      const project = await this.prisma.project.findFirst({
+        where: {
+          id: projectId,
+          members: {
+            some: {
+              userId,
+            },
+          },
+        },
+      });
+
+      if (!project) {
+        throw new HttpException('Project not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Get file nodes from Figma using token refresh pattern
+      this.logger.log(`Fetching file nodes for project ${projectId}, fileKey: ${body.fileKey}`);
+      const fileData = await this.callWithTokenRefresh(
+        userId,
+        (token) => this.figmaOAuthService.getFileNodes(token, body.fileKey),
+      );
+
+      // Parse components
+      this.logger.log('Parsing components from file data');
+      const parsedComponents = this.figmaParserService.parseComponents(fileData);
+      this.logger.log(`Parsed ${parsedComponents.length} components`);
+
+      if (parsedComponents.length === 0) {
+        return {
+          imported: 0,
+          updated: 0,
+          errors: ['No components found in the Figma file'],
+        };
+      }
+
+      // Extract node IDs for images
+      const nodeIds = parsedComponents.flatMap(comp => [
+        comp.nodeId,
+        ...comp.variants.map(v => v.nodeId),
+      ]);
+
+      this.logger.log(`Fetching images for ${nodeIds.length} nodes`);
+
+      // Fetch images in batches
+      const images = await this.callWithTokenRefresh(
+        userId,
+        (token) => this.figmaOAuthService.getComponentImages(token, body.fileKey, nodeIds),
+      );
+
+      this.logger.log(`Fetched ${Object.keys(images).length} images`);
+
+      // Save components to database
+      const imported: string[] = [];
+      const updated: string[] = [];
+      const errors: string[] = [];
+
+      for (const parsed of parsedComponents) {
+        try {
+          // Check if component already exists
+          const existing = await this.prisma.component.findFirst({
+            where: { projectId, figmaNodeId: parsed.nodeId },
+          });
+
+          if (existing) {
+            // Update existing component
+            await this.prisma.component.update({
+              where: { id: existing.id },
+              data: {
+                name: parsed.name,
+                category: parsed.category,
+                previewUrl: images[parsed.nodeId] || null,
+              },
+            });
+
+            // Update/create variants
+            for (const variant of parsed.variants) {
+              const existingVariant = await this.prisma.componentVariant.findFirst({
+                where: { componentId: existing.id, name: variant.name },
+              });
+
+              if (existingVariant) {
+                await this.prisma.componentVariant.update({
+                  where: { id: existingVariant.id },
+                  data: {
+                    props: variant.properties as any,
+                    previewUrl: images[variant.nodeId] || null,
+                  },
+                });
+              } else {
+                await this.prisma.componentVariant.create({
+                  data: {
+                    componentId: existing.id,
+                    name: variant.name,
+                    props: variant.properties as any,
+                    previewUrl: images[variant.nodeId] || null,
+                  },
+                });
+              }
+            }
+
+            updated.push(parsed.name);
+          } else {
+            // Create new component
+            const newComponent = await this.prisma.component.create({
+              data: {
+                name: parsed.name,
+                category: parsed.category,
+                figmaComponentId: parsed.figmaComponentId,
+                figmaNodeId: parsed.nodeId,
+                previewUrl: images[parsed.nodeId] || null,
+                projectId,
+              },
+            });
+
+            // Create variants
+            for (const variant of parsed.variants) {
+              await this.prisma.componentVariant.create({
+                data: {
+                  componentId: newComponent.id,
+                  name: variant.name,
+                  props: variant.properties as any,
+                  previewUrl: images[variant.nodeId] || null,
+                },
+              });
+            }
+
+            imported.push(parsed.name);
+          }
+        } catch (error) {
+          this.logger.error(`Error processing component ${parsed.name}:`, error.message);
+          errors.push(`${parsed.name}: ${error.message}`);
+        }
+      }
+
+      // Update project stats
+      await this.prisma.project.update({
+        where: { id: projectId },
+        data: {
+          figmaFileId: body.fileKey,
+          figmaLastSyncAt: new Date(),
+          componentsCount: imported.length + updated.length,
+        },
+      });
+
+      this.logger.log(`Import complete: ${imported.length} imported, ${updated.length} updated, ${errors.length} errors`);
+
+      return {
+        imported: imported.length,
+        updated: updated.length,
+        errors,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to import components:`, error.message);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        `Failed to import components: ${error.message}`,
         HttpStatus.BAD_REQUEST,
       );
     }

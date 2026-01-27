@@ -13,20 +13,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Loader2, 
   FileImage, 
   Check, 
   AlertCircle,
   RefreshCw,
-  Link2,
   ExternalLink,
   Search,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { figmaService, FigmaFile } from "@/services/figma.service";
 import { projectsService } from "@/services/projects.service";
+import { companiesService } from "@/services/companies.service";
+import { componentsService } from "@/services/components.service";
+import { settingsService } from "@/services/settings.service";
+import { authService } from "@/services/auth.service";
+import { useNavigate } from "react-router-dom";
 
 interface FigmaImportDialogProps {
   open: boolean;
@@ -46,12 +57,21 @@ const FigmaIcon = ({ className }: { className?: string }) => (
 
 export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState<FigmaFile | null>(null);
   const [projectName, setProjectName] = useState("");
-  const [step, setStep] = useState<'select' | 'configure'>('select');
+  const [step, setStep] = useState<'token' | 'select' | 'configure'>('select');
   const [manualFileKey, setManualFileKey] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [isLoadingFileInfo, setIsLoadingFileInfo] = useState(false);
+  const [companyMode, setCompanyMode] = useState<"none" | "existing" | "new">("none");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [figmaToken, setFigmaToken] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
+
+  // Check if user is authenticated
+  const isAuthenticated = authService.isAuthenticated();
 
   // Check Figma connection status
   const { data: connectionStatus, isLoading: checkingConnection } = useQuery({
@@ -67,14 +87,41 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
     enabled: open && connectionStatus === true,
   });
 
+  const { data: companies = [], isLoading: loadingCompanies } = useQuery({
+    queryKey: ['companies'],
+    queryFn: companiesService.getAll,
+    enabled: open,
+  });
+
   // Create project and import from Figma
   const importMutation = useMutation({
     mutationFn: async ({ name, fileKey }: { name: string; fileKey: string }) => {
+      let companyId: string | undefined;
+      if (companyMode === "new") {
+        const trimmed = newCompanyName.trim();
+        if (!trimmed) {
+          throw new Error("Informe o nome da empresa");
+        }
+        const created = await companiesService.create({ name: trimmed });
+        companyId = created.id;
+      } else if (companyMode === "existing") {
+        if (!selectedCompanyId) {
+          throw new Error("Selecione uma empresa");
+        }
+        companyId = selectedCompanyId;
+      }
+
+      const figmaFileUrl =
+        urlInput?.trim() ||
+        (fileKey ? `https://www.figma.com/file/${fileKey}` : undefined);
+
       // 1. Create project
       const project = await projectsService.create({
         name,
         description: `Importado do Figma`,
         figmaFileId: fileKey,
+        figmaFileUrl,
+        companyId,
       });
 
       // 2. Import variables from Figma
@@ -84,13 +131,21 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
         console.warn('Could not import variables:', error);
       }
 
+      // 3. Import components from Figma
+      try {
+        await componentsService.importComponents(project.id, fileKey);
+      } catch (error) {
+        console.warn('Could not import components:', error);
+      }
+
       return project;
     },
     onSuccess: (project) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['companies'] });
       toast({
         title: "Projeto importado com sucesso!",
-        description: `O projeto "${project.name}" foi criado e vinculado ao Figma.`,
+        description: `O projeto "${project.name}" foi criado com variáveis e componentes do Figma.`,
       });
       handleClose();
     },
@@ -109,6 +164,9 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
     setStep('select');
     setManualFileKey("");
     setUrlInput("");
+    setCompanyMode("none");
+    setSelectedCompanyId("");
+    setNewCompanyName("");
     onOpenChange(false);
   };
 
@@ -169,6 +227,37 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
     }
   };
 
+  const handleSaveFigmaToken = async () => {
+    if (!figmaToken.trim()) {
+      toast({
+        title: "Erro",
+        description: "Cole o token do Figma",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingToken(true);
+    try {
+      await settingsService.saveFigmaToken(figmaToken.trim());
+      toast({
+        title: "Token salvo!",
+        description: "Agora você pode importar projetos do Figma",
+      });
+      // Refresh files list
+      refetchFiles();
+      setStep('select');
+    } catch (error: any) {
+      toast({
+        title: "Erro ao salvar token",
+        description: error.message || "Verifique se o token está correto",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingToken(false);
+    }
+  };
+
   useEffect(() => {
     if (!open) {
       setStep('select');
@@ -177,8 +266,26 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
       setManualFileKey("");
       setUrlInput("");
       setIsLoadingFileInfo(false);
+      setCompanyMode("none");
+      setSelectedCompanyId("");
+      setNewCompanyName("");
+      setFigmaToken("");
     }
   }, [open]);
+
+  // Check if we need to show token setup
+  useEffect(() => {
+    if (open && !checkingConnection && connectionStatus === false && step !== 'configure') {
+      setStep('token');
+    }
+  }, [open, checkingConnection, connectionStatus, step]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (companyMode === "none" && companies.length > 0) {
+      setCompanyMode("existing");
+    }
+  }, [open, companies.length, companyMode]);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -191,28 +298,75 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
             Importar do Figma
           </DialogTitle>
           <DialogDescription>
-            {step === 'select' 
-              ? "Selecione um arquivo do Figma para criar um projeto" 
-              : "Configure o projeto antes de importar"}
+            {step === 'token' && "Configure seu token do Figma para começar"}
+            {step === 'select' && "Selecione um arquivo do Figma para criar um projeto"}
+            {step === 'configure' && "Configure o projeto antes de importar"}
           </DialogDescription>
         </DialogHeader>
 
-        {checkingConnection ? (
+        {!isAuthenticated ? (
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <AlertCircle className="h-12 w-12 text-amber-500" />
+            <div className="text-center">
+              <p className="font-medium">Você precisa estar logado</p>
+              <p className="text-sm text-muted-foreground">
+                Faça login para importar projetos do Figma
+              </p>
+            </div>
+            <Button onClick={() => {
+              onOpenChange(false);
+              navigate('/login');
+            }}>
+              Ir para Login
+            </Button>
+          </div>
+        ) : checkingConnection ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : !connectionStatus ? (
-          <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            <AlertCircle className="h-12 w-12 text-muted-foreground" />
-            <div className="text-center">
-              <p className="font-medium">Figma não conectado</p>
-              <p className="text-sm text-muted-foreground">
-                Você precisa conectar sua conta do Figma primeiro
+        ) : step === 'token' ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border p-4 bg-muted/30 space-y-2">
+              <h3 className="font-medium">Como obter seu token do Figma:</h3>
+              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>Acesse: <a href="https://www.figma.com/developers/api#access-tokens" target="_blank" rel="noreferrer" className="text-primary hover:underline">Figma Developers</a></li>
+                <li>Clique em "Get personal access token"</li>
+                <li>Copie o token (começa com "figd_")</li>
+                <li>Cole abaixo e clique em Salvar</li>
+              </ol>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="figmaToken">Personal Access Token</Label>
+              <Input
+                id="figmaToken"
+                type="password"
+                placeholder="figd_..."
+                value={figmaToken}
+                onChange={(e) => setFigmaToken(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveFigmaToken()}
+              />
+              <p className="text-xs text-muted-foreground">
+                O token será salvo de forma segura e usado para importar seus projetos
               </p>
             </div>
-            <Button onClick={() => window.location.href = `${API_URL}/auth/figma`}>
-              <FigmaIcon className="h-4 w-4 mr-2" />
-              Conectar com Figma
+
+            <Button
+              onClick={handleSaveFigmaToken}
+              disabled={savingToken || !figmaToken.trim()}
+              className="w-full"
+            >
+              {savingToken ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Salvar Token
+                </>
+              )}
             </Button>
           </div>
         ) : step === 'select' ? (
@@ -311,7 +465,15 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
-              <FigmaIcon className="h-8 w-8" />
+              {selectedFile?.thumbnail_url ? (
+                <img
+                  src={selectedFile.thumbnail_url}
+                  alt={selectedFile.name}
+                  className="h-10 w-10 rounded object-cover"
+                />
+              ) : (
+                <FigmaIcon className="h-8 w-8" />
+              )}
               <div>
                 <p className="font-medium">{selectedFile?.name || "Arquivo do Figma"}</p>
                 <p className="text-xs text-muted-foreground">
@@ -328,6 +490,64 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
                 onChange={(e) => setProjectName(e.target.value)}
                 placeholder="Nome do projeto"
               />
+            </div>
+
+            <div className="space-y-3">
+              <Label>Empresa</Label>
+              <RadioGroup
+                value={companyMode}
+                onValueChange={(value) => setCompanyMode(value as "none" | "existing" | "new")}
+                className="gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <RadioGroupItem id="company-none" value="none" />
+                  <Label htmlFor="company-none">Projeto pessoal</Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <RadioGroupItem id="company-existing" value="existing" />
+                  <Label htmlFor="company-existing">Usar empresa existente</Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <RadioGroupItem id="company-new" value="new" />
+                  <Label htmlFor="company-new">Criar nova empresa</Label>
+                </div>
+              </RadioGroup>
+
+              {companyMode === "existing" && (
+                <div className="space-y-2">
+                  <Select
+                    value={selectedCompanyId}
+                    onValueChange={setSelectedCompanyId}
+                    disabled={loadingCompanies || companies.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingCompanies ? "Carregando..." : "Selecione uma empresa"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!loadingCompanies && companies.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Nenhuma empresa cadastrada. Crie uma nova empresa.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {companyMode === "new" && (
+                <div className="space-y-2">
+                  <Input
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    placeholder="Ex: Onix Capital, umClique, UserFlow, Fotus, Litoral, CPAPS"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg border p-3 space-y-2">
@@ -347,7 +567,11 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
-                  Outras variáveis do arquivo
+                  Componentes visuais (buttons, cards, etc)
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-500" />
+                  Previews e variantes de componentes
                 </li>
               </ul>
             </div>
@@ -360,12 +584,14 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
               Voltar
             </Button>
           )}
-          <Button variant="outline" onClick={handleClose}>
-            Cancelar
-          </Button>
+          {step !== 'token' && (
+            <Button variant="outline" onClick={handleClose}>
+              Cancelar
+            </Button>
+          )}
           {step === 'configure' && (
-            <Button 
-              onClick={handleImport} 
+            <Button
+              onClick={handleImport}
               disabled={importMutation.isPending || (!selectedFile && !manualFileKey)}
             >
               {importMutation.isPending ? (

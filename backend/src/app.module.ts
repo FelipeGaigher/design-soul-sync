@@ -7,6 +7,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TokensModule } from './tokens/tokens.module';
 import { FigmaModule } from './figma/figma.module';
+import { CompaniesModule } from './companies/companies.module';
+import { ComponentsModule } from './components/components.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { FigmaModule } from './figma/figma.module';
     ProjectsModule,
     TokensModule,
     FigmaModule,
+    CompaniesModule,
+    ComponentsModule,
   ],
 })
 export class AppModule {}

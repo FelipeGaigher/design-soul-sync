@@ -132,32 +132,41 @@ export class FigmaOAuthService {
   }
 
   async getProjects(accessToken: string): Promise<any[]> {
-    // Figma API doesn't have a direct endpoint to list all user's files
-    // The files:read scope and /v1/me/files endpoint are not available for OAuth apps
-    // Users need to provide file URLs directly or use team projects endpoint
-
-    // For now, we'll verify the token is valid by calling /v1/me
-    // and return an empty array, letting users import files by URL
+    // With Personal Access Token, we can list user's files
     try {
-      const response = await fetch('https://api.figma.com/v1/me', {
+      // Get user's teams first
+      const meResponse = await fetch('https://api.figma.com/v1/me', {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         },
       });
 
-      if (!response.ok) {
-        const error = await response.text();
+      if (!meResponse.ok) {
+        const error = await meResponse.text();
         this.logger.error('Failed to verify Figma token:', error);
         throw new Error('Failed to verify Figma connection');
       }
 
-      // Token is valid, but we can't list files without team/project access
-      // Return empty array - users should import files by URL
-      this.logger.log('Figma connection verified, but file listing requires manual URL input');
-      return [];
+      // Get recent files
+      const filesResponse = await fetch('https://api.figma.com/v1/me/files', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!filesResponse.ok) {
+        // If this endpoint is not available, return empty array
+        this.logger.warn('Cannot list files - returning empty array');
+        return [];
+      }
+
+      const data = await filesResponse.json();
+      this.logger.log(`Found ${data.files?.length || 0} Figma files`);
+
+      return data.files || [];
     } catch (error) {
-      this.logger.error('Error verifying Figma connection:', error);
-      throw new Error('Failed to verify Figma connection');
+      this.logger.error('Error fetching Figma projects:', error);
+      throw new Error('Failed to fetch Figma projects');
     }
   }
 
@@ -207,5 +216,74 @@ export class FigmaOAuthService {
     }
 
     return response.json();
+  }
+
+  async getFileNodes(accessToken: string, fileKey: string): Promise<any> {
+    this.logger.log(`Fetching file nodes for ${fileKey}`);
+
+    const response = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=2`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.logger.error(`Failed to fetch Figma file nodes (${response.status}):`, errorText);
+
+      const error = new Error(`Figma API error: ${response.status}`);
+      (error as any).status = response.status;
+      throw error;
+    }
+
+    return response.json();
+  }
+
+  async getComponentImages(
+    accessToken: string,
+    fileKey: string,
+    nodeIds: string[],
+  ): Promise<Record<string, string>> {
+    if (nodeIds.length === 0) {
+      return {};
+    }
+
+    // Figma API limita 100 node IDs por request
+    const batchSize = 100;
+    const batches: string[][] = [];
+
+    for (let i = 0; i < nodeIds.length; i += batchSize) {
+      batches.push(nodeIds.slice(i, i + batchSize));
+    }
+
+    const allImages: Record<string, string> = {};
+
+    for (const batch of batches) {
+      const ids = batch.join(',');
+      this.logger.log(`Fetching images for ${batch.length} components`);
+
+      const response = await fetch(
+        `https://api.figma.com/v1/images/${fileKey}?ids=${ids}&format=png&scale=2`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error(`Failed to fetch component images (${response.status}):`, errorText);
+
+        const error = new Error(`Figma API error: ${response.status}`);
+        (error as any).status = response.status;
+        throw error;
+      }
+
+      const data = await response.json();
+      Object.assign(allImages, data.images);
+    }
+
+    return allImages;
   }
 }
