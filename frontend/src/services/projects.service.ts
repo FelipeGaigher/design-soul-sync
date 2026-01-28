@@ -106,4 +106,13 @@ export const projectsService = {
     const response = await api.delete(`/projects/${projectId}/members/${userId}`);
     if (response.error) throw new Error(response.error);
   },
+
+  async importVariables(projectId: string, fileKey: string): Promise<{ imported: number; updated: number; errors: string[] }> {
+    const response = await api.post<{ imported: number; updated: number; errors: string[] }>(
+      `/figma/import/${projectId}`,
+      { fileKey }
+    );
+    if (response.error) throw new Error(response.error);
+    return response.data!;
+  },
 };

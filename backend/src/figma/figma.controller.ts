@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FigmaOAuthService } from '../auth/oauth/figma-oauth.service';
 import { FigmaParserService } from './figma-parser.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 
 // Figma Variable Types
 interface FigmaVariable {
@@ -48,120 +49,39 @@ export class FigmaController {
     private figmaOAuthService: FigmaOAuthService,
     private figmaParserService: FigmaParserService,
     private prisma: PrismaService,
+    private configService: ConfigService,
   ) { }
 
   private async getUserAccessToken(userId: string): Promise<string> {
-    this.logger.log(`Getting access token for user: ${userId}`);
+    // Use token fixo da variável de ambiente
+    const token = this.configService.get<string>('FIGMA_ACCESS_TOKEN');
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { figmaAccessToken: true, figmaRefreshToken: true },
-    });
-
-    this.logger.log(`User figma accessToken exists: ${!!user?.figmaAccessToken}, refreshToken exists: ${!!user?.figmaRefreshToken}`);
-    if (user?.figmaAccessToken) {
-      this.logger.log(`Access token prefix: ${user.figmaAccessToken.substring(0, 15)}...`);
-    }
-    if (user?.figmaRefreshToken) {
-      this.logger.log(`Refresh token prefix: ${user.figmaRefreshToken.substring(0, 15)}...`);
-    }
-
-    if (!user?.figmaAccessToken) {
+    if (!token) {
+      this.logger.error('FIGMA_ACCESS_TOKEN not configured in environment');
       throw new HttpException(
-        'Figma not connected. Please connect your Figma account first.',
-        HttpStatus.UNAUTHORIZED,
+        'Figma integration not configured. Please contact administrator.',
+        HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
 
-    // Try to use current token, if it fails with 403, refresh it
-    return user.figmaAccessToken;
-  }
-
-  private async refreshUserToken(userId: string): Promise<string> {
-    this.logger.log(`Refreshing token for user: ${userId}`);
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { figmaRefreshToken: true },
-    });
-
-    if (!user?.figmaRefreshToken) {
-      throw new HttpException(
-        'No refresh token available. Please reconnect your Figma account.',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-
-    try {
-      const newTokens = await this.figmaOAuthService.refreshAccessToken(user.figmaRefreshToken);
-
-      this.logger.log(`New access token prefix: ${newTokens.access_token?.substring(0, 15)}...`);
-      this.logger.log(`New refresh token prefix: ${newTokens.refresh_token?.substring(0, 15) || '(not returned)'}...`);
-
-      // Update tokens in database - only update refresh token if a new one was provided
-      const updateData: any = {
-        figmaAccessToken: newTokens.access_token,
-      };
-
-      // Figma refresh doesn't always return a new refresh_token
-      if (newTokens.refresh_token) {
-        updateData.figmaRefreshToken = newTokens.refresh_token;
-      }
-
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: updateData,
-      });
-
-      this.logger.log(`Token refreshed successfully for user: ${userId}`);
-      return newTokens.access_token;
-    } catch (error) {
-      this.logger.error(`Failed to refresh token: ${error.message}`);
-      throw new HttpException(
-        'Failed to refresh Figma token. Please reconnect your Figma account.',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
+    this.logger.log(`Using system Figma token (prefix: ${token.substring(0, 10)}...)`);
+    return token;
   }
 
   private async callWithTokenRefresh<T>(
     userId: string,
     apiCall: (token: string) => Promise<T>,
   ): Promise<T> {
-    let accessToken = await this.getUserAccessToken(userId);
-
-    try {
-      return await apiCall(accessToken);
-    } catch (error) {
-      // If we get a 403 or 401, try refreshing the token
-      const status = (error as any).status;
-      const shouldRefresh = status === 403 || status === 401 ||
-        error.message?.includes('403') ||
-        error.message?.includes('401');
-
-      if (shouldRefresh) {
-        this.logger.log(`Got ${status || 'auth error'}, attempting token refresh...`);
-        try {
-          accessToken = await this.refreshUserToken(userId);
-          return await apiCall(accessToken);
-        } catch (refreshError) {
-          this.logger.error('Token refresh failed:', refreshError.message);
-          throw refreshError;
-        }
-      }
-      throw error;
-    }
+    const accessToken = await this.getUserAccessToken(userId);
+    return await apiCall(accessToken);
   }
 
   @Get('status')
   async getConnectionStatus(@Request() req) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: req.user.sub },
-      select: { figmaAccessToken: true },
-    });
-
+    // Sempre retorna true pois o token está configurado no sistema
+    const token = this.configService.get<string>('FIGMA_ACCESS_TOKEN');
     return {
-      connected: !!user?.figmaAccessToken,
+      connected: !!token,
     };
   }
 
@@ -543,15 +463,14 @@ export class FigmaController {
     const userId = req.user.sub;
 
     try {
-      // Verify project belongs to user
+      // Verify project belongs to user (owner or member)
       const project = await this.prisma.project.findFirst({
         where: {
           id: projectId,
-          members: {
-            some: {
-              userId,
-            },
-          },
+          OR: [
+            { ownerId: userId },
+            { members: { some: { userId } } },
+          ],
         },
       });
 

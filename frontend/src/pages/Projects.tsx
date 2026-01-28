@@ -26,20 +26,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Plus, 
-  Search, 
+import {
+  Plus,
+  Search,
   Folder,
   AlertCircle,
   CheckCircle2,
   Clock,
   Box,
-  Coins,
   MoreHorizontal,
   Pencil,
   Trash2,
   Loader2,
-  Download,
+  Eye,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,6 +49,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { projectsService, Project } from "@/services/projects.service";
 import { FigmaImportDialog } from "@/components/figma/FigmaImportDialog";
+import { useNavigate } from "react-router-dom";
 
 // Ícone do Figma
 const FigmaIcon = ({ className }: { className?: string }) => (
@@ -65,6 +65,7 @@ import { useProject } from "@/contexts/ProjectContext";
 
 export default function Projects() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { setActiveProject, activeProject } = useProject();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -148,8 +149,8 @@ export default function Projects() {
   const totalStats = {
     projects: projects.length,
     components: projects.reduce((acc, p) => acc + (p.componentsCount || 0), 0),
-    tokens: projects.reduce((acc, p) => acc + (p.tokensCount || 0), 0),
     divergences: projects.reduce((acc, p) => acc + (p.divergencesCount || 0), 0),
+    synced: projects.filter(p => p.figmaLastSyncAt).length,
   };
 
   const handleCreate = () => {
@@ -184,6 +185,11 @@ export default function Projects() {
   const handleSelectProject = (project: Project) => {
     setActiveProject(project);
     toast({ title: `Projeto "${project.name}" selecionado` });
+  };
+
+  const handleViewProject = (project: Project) => {
+    setActiveProject(project);
+    navigate(`/design-system/${project.id}`);
   };
 
   if (error) {
@@ -292,11 +298,11 @@ export default function Projects() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Coins className="h-5 w-5 text-primary" />
+                <CheckCircle2 className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <div className="text-2xl font-semibold">{totalStats.tokens}</div>
-                <p className="text-xs text-muted-foreground">Tokens Gerenciados</p>
+                <div className="text-2xl font-semibold">{totalStats.synced}</div>
+                <p className="text-xs text-muted-foreground">Sincronizados Figma</p>
               </div>
             </div>
           </CardContent>
@@ -406,11 +412,15 @@ export default function Projects() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewProject(project); }}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Visualizar
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(project); }}>
                             <Pencil className="h-4 w-4 mr-2" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             className="text-destructive"
                             onClick={(e) => { e.stopPropagation(); openDeleteDialog(project); }}
                           >
@@ -441,19 +451,12 @@ export default function Projects() {
                       <p className="font-semibold text-lg">{project.componentsCount || 0}</p>
                     </div>
                     <div className="rounded-lg bg-muted/30 p-3">
-                      <p className="text-muted-foreground text-xs mb-1">Tokens</p>
-                      <p className="font-semibold text-lg">{project.tokensCount || 0}</p>
+                      <p className="text-muted-foreground text-xs mb-1">Divergências</p>
+                      <p className={`font-semibold text-lg ${(project.divergencesCount || 0) > 0 ? 'text-destructive' : 'text-primary'}`}>
+                        {project.divergencesCount || 0}
+                      </p>
                     </div>
                   </div>
-
-                  {(project.divergencesCount || 0) > 0 && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Divergências Figma</span>
-                      <Badge variant="secondary" className="bg-destructive/10 text-destructive">
-                        {project.divergencesCount}
-                      </Badge>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             );

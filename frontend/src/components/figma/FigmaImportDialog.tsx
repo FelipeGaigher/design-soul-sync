@@ -11,8 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -21,21 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Loader2, 
-  FileImage, 
-  Check, 
+import {
+  Loader2,
+  Check,
   AlertCircle,
-  RefreshCw,
-  ExternalLink,
-  Search,
+  Layers,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { figmaService, FigmaFile } from "@/services/figma.service";
 import { projectsService } from "@/services/projects.service";
 import { companiesService } from "@/services/companies.service";
 import { componentsService } from "@/services/components.service";
-import { settingsService } from "@/services/settings.service";
 import { authService } from "@/services/auth.service";
 import { useNavigate } from "react-router-dom";
 
@@ -58,34 +51,17 @@ const FigmaIcon = ({ className }: { className?: string }) => (
 export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [selectedFile, setSelectedFile] = useState<FigmaFile | null>(null);
   const [projectName, setProjectName] = useState("");
-  const [step, setStep] = useState<'token' | 'select' | 'configure'>('select');
-  const [manualFileKey, setManualFileKey] = useState("");
   const [urlInput, setUrlInput] = useState("");
-  const [isLoadingFileInfo, setIsLoadingFileInfo] = useState(false);
   const [companyMode, setCompanyMode] = useState<"none" | "existing" | "new">("none");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [newCompanyName, setNewCompanyName] = useState("");
-  const [figmaToken, setFigmaToken] = useState("");
-  const [savingToken, setSavingToken] = useState(false);
+  const [showSuccessPreview, setShowSuccessPreview] = useState(false);
+  const [importedProject, setImportedProject] = useState<any>(null);
+  const [componentPreviews, setComponentPreviews] = useState<any[]>([]);
 
   // Check if user is authenticated
   const isAuthenticated = authService.isAuthenticated();
-
-  // Check Figma connection status
-  const { data: connectionStatus, isLoading: checkingConnection } = useQuery({
-    queryKey: ['figma-status'],
-    queryFn: figmaService.isConnected,
-    enabled: open,
-  });
-
-  // Fetch Figma projects/files
-  const { data: figmaFiles = [], isLoading: loadingFiles, refetch: refetchFiles } = useQuery({
-    queryKey: ['figma-files'],
-    queryFn: figmaService.getProjects,
-    enabled: open && connectionStatus === true,
-  });
 
   const { data: companies = [], isLoading: loadingCompanies } = useQuery({
     queryKey: ['companies'],
@@ -93,10 +69,19 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
     enabled: open,
   });
 
+  const extractFileKey = (url: string): string => {
+    // Extract file key from Figma URL
+    // https://www.figma.com/file/ABC123/File-Name or https://www.figma.com/design/ABC123/File-Name
+    const match = url.match(/figma\.com\/(file|design)\/([a-zA-Z0-9]+)/);
+    return match ? match[2] : url;
+  };
+
   // Create project and import from Figma
   const importMutation = useMutation({
-    mutationFn: async ({ name, fileKey }: { name: string; fileKey: string }) => {
+    mutationFn: async ({ name, url }: { name: string; url: string }) => {
+      const fileKey = extractFileKey(url);
       let companyId: string | undefined;
+
       if (companyMode === "new") {
         const trimmed = newCompanyName.trim();
         if (!trimmed) {
@@ -111,9 +96,7 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
         companyId = selectedCompanyId;
       }
 
-      const figmaFileUrl =
-        urlInput?.trim() ||
-        (fileKey ? `https://www.figma.com/file/${fileKey}` : undefined);
+      const figmaFileUrl = url.trim();
 
       // 1. Create project
       const project = await projectsService.create({
@@ -126,7 +109,7 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
 
       // 2. Import variables from Figma
       try {
-        await figmaService.importVariables(project.id, fileKey);
+        await projectsService.importVariables(project.id, fileKey);
       } catch (error) {
         console.warn('Could not import variables:', error);
       }
@@ -140,14 +123,22 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
 
       return project;
     },
-    onSuccess: (project) => {
+    onSuccess: async (project) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['companies'] });
-      toast({
-        title: "Projeto importado com sucesso!",
-        description: `O projeto "${project.name}" foi criado com variáveis e componentes do Figma.`,
-      });
-      handleClose();
+
+      // Fetch component previews for confirmation
+      try {
+        const componentsData = await componentsService.getProjectComponents(project.id);
+        const allComponents = componentsData.folders.flatMap(f => f.components);
+        setComponentPreviews(allComponents.slice(0, 6)); // Show first 6 components
+      } catch (error) {
+        console.warn('Could not fetch component previews:', error);
+        setComponentPreviews([]);
+      }
+
+      setImportedProject(project);
+      setShowSuccessPreview(true);
     },
     onError: (error: Error) => {
       toast({
@@ -159,126 +150,45 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
   });
 
   const handleClose = () => {
-    setSelectedFile(null);
     setProjectName("");
-    setStep('select');
-    setManualFileKey("");
     setUrlInput("");
     setCompanyMode("none");
     setSelectedCompanyId("");
     setNewCompanyName("");
+    setShowSuccessPreview(false);
+    setImportedProject(null);
+    setComponentPreviews([]);
     onOpenChange(false);
   };
 
-  const handleSelectFile = (file: FigmaFile) => {
-    setSelectedFile(file);
-    setProjectName(file.name);
-    setStep('configure');
-  };
-
   const handleImport = () => {
-    const fileKey = selectedFile?.key || manualFileKey;
-    const name = projectName || selectedFile?.name || "Projeto Figma";
+    const url = urlInput.trim();
+    const name = projectName.trim() || "Projeto Figma";
 
-    if (!fileKey) {
+    if (!url) {
       toast({
         title: "Erro",
-        description: "Selecione um arquivo ou insira a URL do Figma",
+        description: "Insira a URL do projeto Figma",
         variant: "destructive",
       });
       return;
     }
 
-    importMutation.mutate({ name, fileKey });
-  };
-
-  const extractFileKey = (url: string): string => {
-    // Extract file key from Figma URL
-    // https://www.figma.com/file/ABC123/File-Name or https://www.figma.com/design/ABC123/File-Name
-    const match = url.match(/figma\.com\/(file|design)\/([a-zA-Z0-9]+)/);
-    return match ? match[2] : url;
-  };
-
-  const handleFetchFileInfo = async () => {
-    if (!urlInput) return;
-    
-    const fileKey = extractFileKey(urlInput);
-    setManualFileKey(fileKey);
-    setIsLoadingFileInfo(true);
-
-    try {
-      const fileInfo = await figmaService.getFileInfo(fileKey);
-      setSelectedFile({
-        key: fileKey,
-        name: fileInfo.name,
-        thumbnail_url: fileInfo.thumbnail_url,
-        last_modified: fileInfo.lastModified || fileInfo.last_modified,
-      } as FigmaFile);
-      setProjectName(fileInfo.name);
-      setStep('configure');
-    } catch (error) {
-      toast({
-        title: "Erro ao buscar arquivo",
-        description: "Não foi possível acessar este arquivo. Verifique a URL e se você tem acesso.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoadingFileInfo(false);
-    }
-  };
-
-  const handleSaveFigmaToken = async () => {
-    if (!figmaToken.trim()) {
-      toast({
-        title: "Erro",
-        description: "Cole o token do Figma",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSavingToken(true);
-    try {
-      await settingsService.saveFigmaToken(figmaToken.trim());
-      toast({
-        title: "Token salvo!",
-        description: "Agora você pode importar projetos do Figma",
-      });
-      // Refresh files list
-      refetchFiles();
-      setStep('select');
-    } catch (error: any) {
-      toast({
-        title: "Erro ao salvar token",
-        description: error.message || "Verifique se o token está correto",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingToken(false);
-    }
+    importMutation.mutate({ name, url });
   };
 
   useEffect(() => {
     if (!open) {
-      setStep('select');
-      setSelectedFile(null);
       setProjectName("");
-      setManualFileKey("");
       setUrlInput("");
-      setIsLoadingFileInfo(false);
       setCompanyMode("none");
       setSelectedCompanyId("");
       setNewCompanyName("");
-      setFigmaToken("");
+      setShowSuccessPreview(false);
+      setImportedProject(null);
+      setComponentPreviews([]);
     }
   }, [open]);
-
-  // Check if we need to show token setup
-  useEffect(() => {
-    if (open && !checkingConnection && connectionStatus === false && step !== 'configure') {
-      setStep('token');
-    }
-  }, [open, checkingConnection, connectionStatus, step]);
 
   useEffect(() => {
     if (!open) return;
@@ -287,24 +197,82 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
     }
   }, [open, companies.length, companyMode]);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FigmaIcon className="h-5 w-5" />
-            Importar do Figma
+            {showSuccessPreview ? "Importação Concluída!" : "Importar do Figma"}
           </DialogTitle>
           <DialogDescription>
-            {step === 'token' && "Configure seu token do Figma para começar"}
-            {step === 'select' && "Selecione um arquivo do Figma para criar um projeto"}
-            {step === 'configure' && "Configure o projeto antes de importar"}
+            {showSuccessPreview
+              ? "Confira os componentes importados do Figma"
+              : "Cole a URL do projeto Figma e configure as opções"}
           </DialogDescription>
         </DialogHeader>
 
-        {!isAuthenticated ? (
+        {showSuccessPreview ? (
+          // Success Preview Screen
+          <div className="space-y-4">
+            {/* Project Info */}
+            <div className="rounded-lg border p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/40">
+                  <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-900 dark:text-green-100">
+                    {importedProject?.name}
+                  </h3>
+                  <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                    Projeto importado com sucesso do Figma
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Component Previews */}
+            {componentPreviews.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium">
+                  Componentes importados ({componentPreviews.length}+):
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  {componentPreviews.map((component) => (
+                    <div
+                      key={component.id}
+                      className="rounded-lg border p-2 bg-muted/30 hover:bg-muted/50 transition-colors"
+                    >
+                      {component.previewUrl ? (
+                        <img
+                          src={component.previewUrl}
+                          alt={component.name}
+                          className="w-full h-20 object-contain rounded"
+                        />
+                      ) : (
+                        <div className="w-full h-20 bg-muted rounded flex items-center justify-center">
+                          <Layers className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <p className="text-xs font-medium mt-2 truncate text-center">
+                        {component.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {componentPreviews.length === 0 && (
+              <div className="rounded-lg border p-4 bg-muted/30">
+                <p className="text-sm text-muted-foreground text-center">
+                  Nenhum componente visual encontrado. Variáveis foram importadas.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : !isAuthenticated ? (
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <AlertCircle className="h-12 w-12 text-amber-500" />
             <div className="text-center">
@@ -320,180 +288,36 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
               Ir para Login
             </Button>
           </div>
-        ) : checkingConnection ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : step === 'token' ? (
-          <div className="space-y-4">
-            <div className="rounded-lg border p-4 bg-muted/30 space-y-2">
-              <h3 className="font-medium">Como obter seu token do Figma:</h3>
-              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                <li>Acesse: <a href="https://www.figma.com/developers/api#access-tokens" target="_blank" rel="noreferrer" className="text-primary hover:underline">Figma Developers</a></li>
-                <li>Clique em "Get personal access token"</li>
-                <li>Copie o token (começa com "figd_")</li>
-                <li>Cole abaixo e clique em Salvar</li>
-              </ol>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="figmaToken">Personal Access Token</Label>
-              <Input
-                id="figmaToken"
-                type="password"
-                placeholder="figd_..."
-                value={figmaToken}
-                onChange={(e) => setFigmaToken(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveFigmaToken()}
-              />
-              <p className="text-xs text-muted-foreground">
-                O token será salvo de forma segura e usado para importar seus projetos
-              </p>
-            </div>
-
-            <Button
-              onClick={handleSaveFigmaToken}
-              disabled={savingToken || !figmaToken.trim()}
-              className="w-full"
-            >
-              {savingToken ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Salvar Token
-                </>
-              )}
-            </Button>
-          </div>
-        ) : step === 'select' ? (
-          <div className="space-y-4">
-            {/* Manual URL input */}
-            <div className="space-y-2">
-              <Label>Cole a URL do arquivo Figma</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://www.figma.com/design/ABC123/..."
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleFetchFileInfo()}
-                />
-                <Button 
-                  variant="secondary"
-                  disabled={!urlInput || isLoadingFileInfo}
-                  onClick={handleFetchFileInfo}
-                >
-                  {isLoadingFileInfo ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Copie a URL do arquivo no Figma e cole aqui
-              </p>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  ou selecione um arquivo recente
-                </span>
-              </div>
-            </div>
-
-            {/* Files list */}
-            <div className="flex items-center justify-between">
-              <Label>Arquivos recentes do Figma</Label>
-              <Button variant="ghost" size="sm" onClick={() => refetchFiles()}>
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {loadingFiles ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
-                ))}
-              </div>
-            ) : figmaFiles.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileImage className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Nenhum arquivo encontrado</p>
-                <p className="text-xs">Cole a URL do arquivo acima</p>
-              </div>
-            ) : (
-              <ScrollArea className="h-[250px]">
-                <div className="space-y-2">
-                  {figmaFiles.map((file) => (
-                    <button
-                      key={file.key || file.id}
-                      onClick={() => handleSelectFile(file)}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-accent transition-colors text-left"
-                    >
-                      {file.thumbnail_url ? (
-                        <img 
-                          src={file.thumbnail_url} 
-                          alt={file.name}
-                          className="h-10 w-10 rounded object-cover"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                          <FileImage className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {file.last_modified && new Date(file.last_modified).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
-              {selectedFile?.thumbnail_url ? (
-                <img
-                  src={selectedFile.thumbnail_url}
-                  alt={selectedFile.name}
-                  className="h-10 w-10 rounded object-cover"
-                />
-              ) : (
-                <FigmaIcon className="h-8 w-8" />
-              )}
-              <div>
-                <p className="font-medium">{selectedFile?.name || "Arquivo do Figma"}</p>
-                <p className="text-xs text-muted-foreground">
-                  {selectedFile?.key || manualFileKey}
-                </p>
-              </div>
+            {/* URL Input */}
+            <div className="space-y-2">
+              <Label htmlFor="figmaUrl">URL do Figma *</Label>
+              <Input
+                id="figmaUrl"
+                placeholder="https://www.figma.com/design/ABC123/..."
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Cole a URL completa do arquivo Figma
+              </p>
             </div>
 
+            {/* Project Name */}
             <div className="space-y-2">
-              <Label htmlFor="projectName">Nome do projeto</Label>
+              <Label htmlFor="projectName">Nome do Projeto *</Label>
               <Input
                 id="projectName"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="Nome do projeto"
+                placeholder="Ex: Design System Principal"
               />
             </div>
 
+            {/* Company Selection */}
             <div className="space-y-3">
-              <Label>Empresa</Label>
+              <Label>Empresa (Opcional)</Label>
               <RadioGroup
                 value={companyMode}
                 onValueChange={(value) => setCompanyMode(value as "none" | "existing" | "new")}
@@ -544,26 +368,19 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
                   <Input
                     value={newCompanyName}
                     onChange={(e) => setNewCompanyName(e.target.value)}
-                    placeholder="Ex: Onix Capital, umClique, UserFlow, Fotus, Litoral, CPAPS"
+                    placeholder="Nome da empresa"
                   />
                 </div>
               )}
             </div>
 
-            <div className="rounded-lg border p-3 space-y-2">
+            {/* Info Box */}
+            <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
               <p className="text-sm font-medium">O que será importado:</p>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
-                  Variáveis de cor
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-500" />
-                  Variáveis de espaçamento
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-500" />
-                  Variáveis de tipografia
+                  Variáveis (cores, espaçamento, tipografia)
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
@@ -579,33 +396,45 @@ export function FigmaImportDialog({ open, onOpenChange }: FigmaImportDialogProps
         )}
 
         <DialogFooter>
-          {step === 'configure' && (
-            <Button variant="outline" onClick={() => setStep('select')}>
-              Voltar
-            </Button>
-          )}
-          {step !== 'token' && (
-            <Button variant="outline" onClick={handleClose}>
-              Cancelar
-            </Button>
-          )}
-          {step === 'configure' && (
-            <Button
-              onClick={handleImport}
-              disabled={importMutation.isPending || (!selectedFile && !manualFileKey)}
-            >
-              {importMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Importando...
-                </>
-              ) : (
-                <>
-                  <FigmaIcon className="h-4 w-4 mr-2" />
-                  Importar Projeto
-                </>
+          {showSuccessPreview ? (
+            <>
+              <Button variant="outline" onClick={handleClose}>
+                Fechar
+              </Button>
+              <Button
+                onClick={() => {
+                  handleClose();
+                  navigate(`/design-system/${importedProject?.id}`);
+                }}
+              >
+                <Layers className="h-4 w-4 mr-2" />
+                Ver Componentes
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleClose}>
+                Cancelar
+              </Button>
+              {isAuthenticated && (
+                <Button
+                  onClick={handleImport}
+                  disabled={importMutation.isPending || !urlInput.trim() || !projectName.trim()}
+                >
+                  {importMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Importando...
+                    </>
+                  ) : (
+                    <>
+                      <FigmaIcon className="h-4 w-4 mr-2" />
+                      Importar Projeto
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

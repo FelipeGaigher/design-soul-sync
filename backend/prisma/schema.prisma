@@ -40,11 +40,14 @@ enum TokenType {
 }
 
 enum ComponentCategory {
-  FUNDAMENTAIS
-  FEEDBACK
-  LAYOUT
-  NAVEGACAO
-  DADOS
+  FOUNDATION        // Tipografia, Cores
+  FORM_CONTROLS     // Input, Checkbox, Switch, Dropdown
+  BUTTONS           // Buttons (todos os tipos)
+  FEEDBACK          // Alert, Loading, Tags
+  NAVIGATION        // Breadcrumb, Navbar, Menu Lateral, Menu Topo, Steps
+  LAYOUT            // Cards, Modal, Calendar
+  DATA_DISPLAY      // Tables, Product Display, Contador, Filter
+  MEDIA             // Icons, Logos
 }
 
 enum ChangeOrigin {

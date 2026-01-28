@@ -101,7 +101,7 @@ export class FigmaOAuthService {
   async getUserInfo(accessToken: string): Promise<FigmaUser> {
     const response = await fetch('https://api.figma.com/v1/me', {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'X-Figma-Token': accessToken,
       },
     });
 
@@ -137,7 +137,7 @@ export class FigmaOAuthService {
       // Get user's teams first
       const meResponse = await fetch('https://api.figma.com/v1/me', {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'X-Figma-Token': accessToken,
         },
       });
 
@@ -150,7 +150,7 @@ export class FigmaOAuthService {
       // Get recent files
       const filesResponse = await fetch('https://api.figma.com/v1/me/files', {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'X-Figma-Token': accessToken,
         },
       });
 
@@ -175,7 +175,7 @@ export class FigmaOAuthService {
 
     const response = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=1`, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'X-Figma-Token': accessToken,
       },
     });
 
@@ -202,7 +202,7 @@ export class FigmaOAuthService {
   async getFileVariables(accessToken: string, fileKey: string): Promise<any> {
     const response = await fetch(`https://api.figma.com/v1/files/${fileKey}/variables/local`, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'X-Figma-Token': accessToken,
       },
     });
 
@@ -221,17 +221,32 @@ export class FigmaOAuthService {
   async getFileNodes(accessToken: string, fileKey: string): Promise<any> {
     this.logger.log(`Fetching file nodes for ${fileKey}`);
 
-    const response = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=2`, {
+    // Use depth=10 to get full component structure including nested children
+    // Also request component sets and component property definitions
+    const response = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=10`, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'X-Figma-Token': accessToken,
       },
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      this.logger.error(`Failed to fetch Figma file nodes (${response.status}):`, errorText);
+      this.logger.error(`Failed to fetch Figma file nodes (${response.status}):`);
+      this.logger.error(`Error details: ${errorText}`);
+      this.logger.error(`File key: ${fileKey}`);
+      this.logger.error(`Token prefix: ${accessToken.substring(0, 15)}...`);
 
-      const error = new Error(`Figma API error: ${response.status}`);
+      let errorMessage = `Figma API error: ${response.status}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.err || errorJson.message) {
+          errorMessage = errorJson.err || errorJson.message || errorMessage;
+        }
+      } catch (e) {
+        errorMessage = errorText || errorMessage;
+      }
+
+      const error = new Error(errorMessage);
       (error as any).status = response.status;
       throw error;
     }
@@ -266,7 +281,7 @@ export class FigmaOAuthService {
         `https://api.figma.com/v1/images/${fileKey}?ids=${ids}&format=png&scale=2`,
         {
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
+            'X-Figma-Token': accessToken,
           },
         }
       );

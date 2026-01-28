@@ -86,8 +86,8 @@ export default function Login() {
         title: "Login realizado com sucesso!",
         description: `Bem-vindo de volta, ${response.user.name}!`,
       });
-      
-      navigate("/tokens");
+
+      navigate("/");
     } catch (error) {
       toast({
         title: "Erro ao fazer login",
@@ -113,8 +113,8 @@ export default function Login() {
         title: "Conta criada com sucesso!",
         description: `Bem-vindo ao TokenSync, ${response.user.name}!`,
       });
-      
-      navigate("/tokens");
+
+      navigate("/");
     } catch (error) {
       toast({
         title: "Erro ao criar conta",

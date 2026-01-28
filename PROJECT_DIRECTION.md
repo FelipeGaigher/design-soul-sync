@@ -309,15 +309,18 @@ Toggle no header para alternar entre os temas.
 
 ### Fase 1: Estrutura Base
 - [x] Documento de direção atualizado
-- [ ] Sidebar com navegação correta
-- [ ] Dashboard com estatísticas
-- [ ] Tema light/dark mode
+- [x] Sidebar com navegação correta
+- [x] Dashboard com estatísticas
+- [x] Tema light/dark mode
 
 ### Fase 2: Projetos
-- [ ] Lista de projetos por empresa
-- [ ] Visualização de componentes por categoria
-- [ ] Geração de código
-- [ ] Importação do Figma
+- [x] Lista de projetos por empresa
+- [x] Visualização de componentes por categoria
+- [x] Geração de código (React, Vue, Angular)
+- [x] Importação do Figma
+- [x] Ação de visualizar projeto (ver componentes e código)
+- [x] Remover campo 'tokens' do card (Figma não permite ler tokens)
+- [x] Visualização de propriedades detalhadas dos componentes
 
 ### Fase 3: Usuários
 - [ ] CRUD de usuários
@@ -328,3 +331,91 @@ Toggle no header para alternar entre os temas.
 - [ ] Histórico de alterações
 - [ ] Alertas e notificações
 - [ ] Consistência de projetos
+
+---
+
+## Melhorias Implementadas (Janeiro 2026)
+
+### 1. Ação de Visualizar Projetos
+- Adicionada opção "Visualizar" no menu dropdown dos cards de projeto
+- Redireciona para `/design-system/:id` com visualização completa dos componentes
+- Mantém ações de Editar e Deletar existentes
+
+### 2. Remoção do Campo Tokens
+- Removido contador de tokens do card de projetos
+- Substituído por contador de divergências (mais útil para monitoramento)
+- Stats globais agora mostram: Projetos, Componentes, Sincronizados, Divergências
+
+### 3. Parser do Figma Melhorado
+O parser agora extrai propriedades completas dos componentes:
+
+**Propriedades Visuais:**
+- Fills (cores sólidas, gradientes, imagens)
+- Strokes (cor, peso, posição, dash pattern)
+- Effects (sombras, blur)
+
+**Tipografia:**
+- Font family, size, weight, style
+- Line height, letter spacing
+- Alinhamento, decoração, case
+
+**Layout:**
+- Dimensões (width, height, min/max)
+- Corner radius (uniform ou individual)
+- Auto Layout (direction, padding, spacing)
+- Constraints
+
+**Estrutura:**
+- Textos filhos com estilos
+- Ícones encontrados
+- Elementos filhos (até 5 níveis de profundidade)
+- Propriedades de variantes
+
+### 4. Página de Visualização de Componentes
+Nova visualização com 3 abas:
+- **Preview**: Imagem do componente do Figma
+- **Propriedades**: Todas as propriedades detalhadas
+- **Código**: Código gerado (React, Vue, Angular)
+
+Painel de propriedades mostra:
+- Dimensões com valores em pixels
+- Fills com preview de cor e valor hex
+- Strokes com cor, peso e posição
+- Effects com tipo, cor, offset, radius
+- Border radius (uniform ou por canto)
+- Auto Layout com direction, gap, padding
+- Textos com fonte, tamanho, peso, espaçamento
+- Ícones encontrados
+- Variantes disponíveis
+- Elementos filhos
+
+### 5. Design System Interno do TokenSync
+Criado projeto "TokenSync Design System" com:
+- 57+ tokens (cores, spacing, typography, shadows)
+- 27 componentes organizados por categoria
+- Variantes com propriedades detalhadas
+- Dados de exemplo para demonstração
+
+**Componentes incluídos:**
+- BUTTONS: Button (5 variantes)
+- FORM_CONTROLS: Input, Checkbox, Switch, Select, Radio
+- FEEDBACK: Alert, Badge, Toast, Progress, Spinner
+- LAYOUT: Card, Dialog, Tabs, Accordion, Separator
+- NAVIGATION: Breadcrumb, Sidebar, Pagination, Menu
+- DATA_DISPLAY: Table, Avatar, List
+- MEDIA: Icon
+- FOUNDATION: Typography/Heading, Typography/Body
+
+---
+
+## Limitações Conhecidas
+
+### Figma API
+- **Tokens**: O Figma não expõe tokens/variáveis existentes via API REST
+- **Apenas componentes publicados são detectados**
+- **Imagens de preview podem não estar disponíveis para todos os componentes**
+
+### Geração de Código
+- O código gerado é um template baseado nas propriedades
+- Não representa o código exato do componente
+- Útil como ponto de partida para implementação
